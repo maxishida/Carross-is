@@ -52,8 +52,8 @@ const carouselSchema: Schema = {
           slideNumber: { type: Type.INTEGER },
           title: { type: Type.STRING, description: "Título chamativo (máx 5 palavras)" },
           content: { type: Type.STRING, description: "Mensagem principal (1-2 frases)" },
-          visualDescription: { type: Type.STRING, description: "Descrição visual (ícones, gráficos, layout)" },
-          imagePrompt: { type: Type.STRING, description: "Prompt detalhado para geração de imagem no Nano Banana Pro" },
+          visualDescription: { type: Type.STRING, description: "Descrição técnica do layout (cores, ícones, posição dos elementos)." },
+          imagePrompt: { type: Type.STRING, description: "PROMPT VISUAL OBRIGATÓRIO: Descreva a cena para um gerador de imagem (Midjourney/Imagen). SE HOUVER IMAGEM DE REFERÊNCIA, VOCÊ DEVE DESCREVER A PESSOA DA IMAGEM AQUI (cor do cabelo, estilo, óculos, roupa) em todos os slides." },
           layoutSuggestion: { type: Type.STRING, description: "Estilo de layout (ex: Checklist, Grade, Storyboard)" }
         },
         required: ["slideNumber", "title", "content", "visualDescription", "imagePrompt", "layoutSuggestion"]
@@ -170,19 +170,74 @@ export const generateCarousel = async (input: string, config: GenerationConfig):
     if (!apiKey) return null;
     const ai = new GoogleGenAI({ apiKey });
     
-    const systemInstruction = `You are an AI for carousels. Style: ${config.style}. Tone: ${config.tone}. Goal: ${config.goal}`; 
+    // --- PIPELINE DE CONSTRUÇÃO DE PROMPT ---
+    
+    let instructions = `
+    ATUE COMO: Diretor de Arte Sênior e Especialista em Visão Computacional.
+    
+    TAREFA: Analisar os inputs e gerar a estrutura JSON de um carrossel.
+    
+    1. ANALISAR DADOS DE ENTRADA:
+    - INPUT DO USUÁRIO: "${input}"
+    - OBJETIVO: ${config.goal}
+    - TOM DE VOZ: ${config.tone}
+    - ESTILO VISUAL: ${config.style}
+    - QUANTIDADE SLIDES: ${config.slideCount}
+    `;
 
-    const textPrompt = config.inputType === 'content' 
-        ? `FONTE: "${input}"\nTAREFA: Carrossel de ${config.slideCount} slides.`
-        : `Tema: ${input}`;
+    // BLOCO RÍGIDO DE ANÁLISE VISUAL (Reference Image)
+    if (config.referenceImage) {
+        instructions += `
+    ⚠️ ALERTA DE REFERÊNCIA VISUAL (PRIORIDADE MÁXIMA):
+    O usuário fez upload de uma imagem de referência.
+    VOCÊ DEVE IGNORAR SEUS VIESES E CLONAR AS CARACTERÍSTICAS DESTA IMAGEM.
+    
+    AÇÃO OBRIGATÓRIA:
+    1. Olhe para a imagem anexada.
+    2. Identifique o personagem (Gênero, Idade aproximada, Cor/Estilo do Cabelo, Óculos, Roupas, Etnia).
+    3. Identifique o cenário e iluminação.
+    4. NO CAMPO 'imagePrompt' DE CADA SLIDE, você deve descrever EXATAMENTE este personagem.
+       EXEMPLO: "A photo of the same man from reference, with short brown hair, glasses, wearing a black hoodie, looking at a laptop..."
+       NÃO CRIE UM PERSONAGEM NOVO. USE O DA FOTO.
+        `;
+    } else if (config.includePeople) {
+        // Se não tem imagem, mas quer pessoas
+        instructions += `
+    ⚠️ CONFIGURAÇÃO DE PERSONAGEM:
+    O usuário solicitou explicitamente: INCLUIR PESSOAS.
+    No campo 'imagePrompt', você DEVE descrever uma pessoa realizando a ação do slide.
+    Estilo do Personagem: ${config.characterStyle || 'Fotorealista profissional'}.
+        `;
+    } else {
+        instructions += `
+    ⚠️ CONFIGURAÇÃO VISUAL:
+    O usuário NÃO solicitou pessoas específicas ou não enviou foto.
+    Foque em: Objetos, Tipografia 3D, Abstrações ou Ícones coerentes com o estilo ${config.style}.
+        `;
+    }
 
-    let requestContent: any = textPrompt;
+    instructions += `
+    SUA SAÍDA DEVE SER APENAS O JSON, SEGUINDO O SCHEMA FORNECIDO.
+    O 'imagePrompt' deve ser em INGLÊS, altamente descritivo e fotográfico.
+    `;
+
+    // System Instruction reforçada
+    const systemInstruction = `
+    Você é um assistente especialista em criar carrosséis perfeitos.
+    Se o usuário mandar uma foto, essa foto é a LEI. Você deve descrever a pessoa da foto nos prompts de imagem gerados.
+    Se o estilo for "Minimalista", não descreva cenas caóticas. Respeite o 'Visual Style' rigorosamente.
+    `;
+
+    let requestContent: any = instructions;
+    
+    // Adiciona a imagem ao payload se existir
     if (config.referenceImage) {
         const base64Data = config.referenceImage.includes(',') ? config.referenceImage.split(',')[1] : config.referenceImage;
+        
         requestContent = { 
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: base64Data } }, 
-                { text: textPrompt }
+                { text: instructions }
             ] 
         };
     }
@@ -195,6 +250,7 @@ export const generateCarousel = async (input: string, config: GenerationConfig):
                 systemInstruction,
                 responseMimeType: "application/json",
                 responseSchema: carouselSchema,
+                temperature: 0.3 // Reduzido para aumentar a fidelidade às instruções
             },
         });
 
@@ -248,7 +304,7 @@ export const refineCarousel = async (currentData: CarouselData, instruction: str
     try {
         const response = await ai.models.generateContent({
               model: "gemini-2.5-flash",
-              contents: `DADOS: ${JSON.stringify(currentData)}\nINSTRUÇÃO: ${instruction}`,
+              contents: `DADOS: ${JSON.stringify(currentData)}\nINSTRUÇÃO DE REFINAMENTO: ${instruction}`,
               config: { responseMimeType: "application/json", responseSchema: carouselSchema },
         });
         if (response.text) return JSON.parse(response.text) as CarouselData;
