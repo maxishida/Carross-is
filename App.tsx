@@ -4,9 +4,10 @@ import TopBar from './components/TopBar';
 import DashboardView from './components/DashboardView';
 import GeneratorView from './components/GeneratorView';
 import CreativeGeneratorView from './components/CreativeGeneratorView';
+import MotionGeneratorView from './components/MotionGeneratorView';
 
 function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'create' | 'creative'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'create' | 'creative' | 'motion'>('dashboard');
 
   const renderContent = () => {
       switch(currentView) {
@@ -14,6 +15,8 @@ function App() {
               return <GeneratorView onBack={() => setCurrentView('dashboard')} />;
           case 'creative':
               return <CreativeGeneratorView onBack={() => setCurrentView('dashboard')} />;
+          case 'motion':
+              return <MotionGeneratorView onBack={() => setCurrentView('dashboard')} />;
           case 'dashboard':
           default:
               return <DashboardView onCreateClick={() => setCurrentView('create')} />;

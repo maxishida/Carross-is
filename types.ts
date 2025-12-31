@@ -15,8 +15,8 @@ export interface CarouselData {
 
 export interface CreativeVariation {
   id: number;
-  conceptTitle: string; // ex: "Abordagem Minimalista"
-  marketingAngle: string; // ex: "Foco na dor do cliente"
+  conceptTitle: string; 
+  marketingAngle: string; 
   visualPrompt: string;
   colorPaletteSuggestion: string;
 }
@@ -30,14 +30,51 @@ export interface GenerationConfig {
   slideCount: number;
   tone: ToneType;
   style: VisualStyleType;
-  goal: CarouselGoal; // New Field
+  goal: CarouselGoal; 
   inputType: 'topic' | 'content'; 
   customTheme?: string;
   includePeople: boolean;
   referenceImage?: string;
   characterStyle?: CharacterStyleType;
-  // Creative Specific
   aspectRatio?: '1:1' | '9:16' | '16:9';
+}
+
+// --- MOTION / VEO TYPES ---
+
+export enum MotionType {
+  TEXT_ONLY = 'motion_text_only',
+  IMAGE_ONLY = 'image_motion_only',
+  MIXED = 'mixed_motion'
+}
+
+export enum MotionStyle {
+  SMOOTH = 'Smooth (Suave)',
+  FAST_PUNCHY = 'Fast & Punchy (Rápido)',
+  CINEMATIC = 'Cinematic (Cinematográfico)',
+  MINIMAL = 'Minimal (Minimalista)',
+  LUXURY = 'Luxury (Luxuoso)',
+  DRAMATIC = 'Dramatic (Dramático)'
+}
+
+export enum MotionVisualTheme {
+  DARK = 'Dark Mode',
+  CLEAN_LIGHT = 'Clean Light',
+  TECH_GRADIENT = 'Tech Gradient',
+  BRUTALIST = 'Brutalist',
+  NEON_GLASS = 'Neon Glass'
+}
+
+export interface MotionConfig {
+  topic: string;
+  type: MotionType;
+  style: MotionStyle;
+  visualTheme: MotionVisualTheme;
+  platform: 'Instagram' | 'LinkedIn' | 'Ads';
+}
+
+export interface MotionResult {
+  script: string; // The director's output
+  videoUri?: string; // The Veo output URI
 }
 
 export enum CarouselGoal {

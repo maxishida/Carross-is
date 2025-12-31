@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface SidebarProps {
-  onNavigate: (view: 'dashboard' | 'create' | 'creative') => void;
-  currentView: 'dashboard' | 'create' | 'creative';
+  onNavigate: (view: 'dashboard' | 'create' | 'creative' | 'motion') => void;
+  currentView: 'dashboard' | 'create' | 'creative' | 'motion';
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
@@ -51,6 +51,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             >
               <span className="material-symbols-outlined transition-transform group-hover:scale-110">photo_library</span>
               <p className="text-sm font-medium leading-normal relative z-10">Criativos (6x)</p>
+            </button>
+
+            <button 
+                onClick={() => onNavigate('motion')}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group text-left relative overflow-hidden ${currentView === 'motion' ? 'glass-button-active border-neon-cyan/60 bg-neon-cyan/20 text-neon-cyan shadow-[0_0_15px_rgba(6,182,212,0.25)]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <span className="material-symbols-outlined transition-transform group-hover:scale-110">movie_filter</span>
+              <p className="text-sm font-medium leading-normal relative z-10">Motion Studio</p>
             </button>
           </nav>
         </div>
