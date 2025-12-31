@@ -105,10 +105,16 @@ const buildSystemInstruction = (config: GenerationConfig): string => {
     if (config.referenceImage) {
         const style = config.characterStyle || CharacterStyleType.REALISTIC;
         peopleInstruction = `
-        **ANÁLISE DE REFERÊNCIA OBRIGATÓRIA**:
-        O usuário forneceu uma imagem de rosto. Analise esta imagem.
-        Para CADA prompt, descreva um personagem que tenha as MESMAS características físicas da pessoa na imagem enviada (cor do cabelo, estilo, barba, óculos, etnia, gênero).
-        **ESTILO DO PERSONAGEM**: Aplique o estilo **${style}** na descrição do personagem.
+        **PROTOCOLO DE CONSISTÊNCIA DE PERSONAGEM (CRÍTICO)**:
+        1. Analise a imagem fornecida (rosto, cabelo, acessórios, etnia, idade).
+        2. Crie um prompt descritivo base para este personagem.
+        3. Para CADA slide, reutilize as características físicas exatas desse personagem.
+        4. APLIQUE O ESTILO VISUAL: **${style}**.
+           - Se for 'Pixar 3D', transforme a pessoa da foto em um personagem 3D fofo.
+           - Se for 'Anime', transforme a pessoa em anime.
+           - Se for 'Realista', mantenha a fidelidade fotográfica.
+        
+        Todos os prompts de imagem DEVEM começar descrevendo este personagem específico realizando a ação do slide.
         `;
     } else if (config.includePeople) {
         peopleInstruction = "INCLUA PESSOAS GENÉRICAS: Os prompts de imagem DEVEM descrever pessoas ou avatares interagindo com elementos.";
@@ -171,26 +177,25 @@ export const generateCarousel = async (
   try {
     let requestContent: any;
     
-    if (config.inputType === 'content') {
-        requestContent = `
-        FONTE DE CONTEÚDO: "${input}"
-        TAREFA: Transforme isso em um carrossel educativo de ${config.slideCount} slides.
-        `;
-    } else {
-        requestContent = `Gere um carrossel completo sobre o tema: ${input}`;
-    }
-    
+    const textPrompt = config.inputType === 'content' 
+        ? `FONTE DE CONTEÚDO: "${input}"\nTAREFA: Transforme isso em um carrossel educativo de ${config.slideCount} slides.`
+        : `Gere um carrossel completo sobre o tema: ${input}`;
+
+    // Handle Multimodal (Image + Text) Input
     if (config.referenceImage) {
-        const base64Data = config.referenceImage.split(',')[1];
+        // Extract base64 part (remove data:image/jpeg;base64, prefix if present)
+        const base64Data = config.referenceImage.includes(',') 
+            ? config.referenceImage.split(',')[1] 
+            : config.referenceImage;
+            
         requestContent = {
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                { text: typeof requestContent === 'string' ? requestContent : requestContent.parts[1].text }
+                { text: textPrompt }
             ]
         };
-        if (typeof requestContent !== 'string') {
-             requestContent.parts[1].text = `Analise a imagem para o personagem. \n\n ${input}`;
-        }
+    } else {
+        requestContent = textPrompt;
     }
 
     const response = await ai.models.generateContent({
@@ -224,7 +229,7 @@ export const generateCreativeVariations = async (
     const ai = new GoogleGenAI({ apiKey });
     const systemInstruction = buildSystemInstruction(config);
 
-    const prompt = `
+    const promptText = `
     TEMA DO CRIATIVO: "${topic}"
     FORMATO: ${config.aspectRatio || '1:1'}
 
@@ -242,17 +247,22 @@ export const generateCreativeVariations = async (
     `;
 
     try {
-        let requestContent: any = prompt;
+        let requestContent: any;
 
         // Handle Image Injection for Creatives too
         if (config.referenceImage) {
-            const base64Data = config.referenceImage.split(',')[1];
+             const base64Data = config.referenceImage.includes(',') 
+            ? config.referenceImage.split(',')[1] 
+            : config.referenceImage;
+
             requestContent = {
                 parts: [
                     { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                    { text: prompt + "\n\n Use a pessoa da imagem como protagonista nas variações Lifestyle e Editorial." }
+                    { text: promptText + "\n\n Use a pessoa da imagem como protagonista nas variações Lifestyle e Editorial." }
                 ]
             };
+        } else {
+            requestContent = promptText;
         }
 
         const response = await ai.models.generateContent({

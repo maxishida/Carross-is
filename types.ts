@@ -75,12 +75,14 @@ export enum VisualStyleType {
 }
 
 export enum CharacterStyleType {
-  REALISTIC = 'Realismo Cinematográfico',
-  GHIBLI = 'Studio Ghibli (Anime)',
-  ANIME_90S = 'Anime Anos 90 (Retro)',
-  PIXAR_3D = 'Estilo 3D Cute (Pixar)',
-  CYBERPUNK = 'Cyberpunk Edgy',
-  OIL_PAINTING = 'Pintura a Óleo Clássica'
+  REALISTIC = 'Fotorealista / Profissional',
+  PIXAR_3D = '3D Cute (Estilo Pixar)',
+  ANIME_MODERN = 'Anime Moderno (Shonen)',
+  ANIME_RETRO = 'Anime Retro (Anos 90)',
+  CLAY = 'Massinha / Claymation',
+  CYBERPUNK = 'Cyberpunk / Futurista',
+  FLAT_VECTOR = 'Vetor Flat (Corporate Memphis)',
+  SKETCH = 'Esboço a Lápis / Artístico'
 }
 
 export interface HistoryItem {

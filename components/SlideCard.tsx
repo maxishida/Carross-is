@@ -63,28 +63,6 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style }) => {
                     <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500 border-2 border-black transform -translate-x-5 translate-y-5 rotate-12 z-0"></div>
                 </>
             );
-        case VisualStyleType.HAND_DRAWN:
-            return (
-                 <div className="absolute inset-0 opacity-10 z-0" style={{backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
-            );
-        case VisualStyleType.ICON_GRID:
-            return (
-                 <div className="absolute inset-0 z-0 grid grid-cols-2 grid-rows-2 opacity-10 divide-x divide-y divide-gray-400">
-                    <div></div><div></div><div></div><div></div>
-                 </div>
-            );
-        case VisualStyleType.STORYBOARD:
-             return (
-                 <div className="absolute top-1/2 left-0 w-full h-0.5 bg-black/10 z-0 transform -translate-y-1/2"></div>
-             );
-        case VisualStyleType.MAGAZINE:
-             return (
-                 <div className="absolute top-0 left-0 w-full h-2 bg-red-600 z-20"></div>
-             );
-        case VisualStyleType.QUOTE_CARD:
-            return (
-                <div className="absolute top-6 left-6 text-6xl text-white/10 font-serif font-bold">“</div>
-            );
         case VisualStyleType.THREE_D_ISOMETRIC:
              return (
                 <div className="absolute inset-0 opacity-10 z-0" style={{backgroundImage: 'radial-gradient(#3b82f6 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
@@ -116,7 +94,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style }) => {
   }
 
   return (
-    <div className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-xl border transition-all duration-300 hover:scale-[1.01] ${getCardStyle()}`}>
+    <div className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:scale-[1.01] ${getCardStyle()}`}>
       
       {/* Background/Visual Placeholder */}
       {getGradientOverlay()}
@@ -158,10 +136,10 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style }) => {
       <div className={`absolute bottom-0 left-0 right-0 p-4 z-30 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 border-t 
          ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-white border-black border-t-2' : 
            style === VisualStyleType.HAND_DRAWN ? 'bg-[#f0ece5] border-dashed border-gray-400' : 
-           'bg-black/40 backdrop-blur-md border-white/10'}`}>
+           'bg-black/60 backdrop-blur-xl border-white/10'}`}>
         <div className="flex flex-col gap-1">
             <span className={`text-[10px] font-bold uppercase ${style === VisualStyleType.NEO_BRUTALISM || style === VisualStyleType.HAND_DRAWN || style === VisualStyleType.MAGAZINE ? 'text-black' : 'text-primary'}`}>Prompt Visual</span>
-            <p className={`text-[10px] line-clamp-3 font-mono ${style === VisualStyleType.NEO_BRUTALISM || style === VisualStyleType.HAND_DRAWN || style === VisualStyleType.MAGAZINE ? 'text-black' : 'text-gray-300'}`}>
+            <p className={`text-[10px] line-clamp-3 font-mono ${style === VisualStyleType.NEO_BRUTALISM || style === VisualStyleType.HAND_DRAWN || style === VisualStyleType.MAGAZINE ? 'text-black' : 'text-slate-300'}`}>
                 {slide.imagePrompt}
             </p>
         </div>
@@ -170,7 +148,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style }) => {
       {/* Hover Actions */}
       <div className="absolute top-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
         <button className={`size-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors
-            ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-black text-white hover:bg-white hover:text-black border-2 border-black' : 'bg-black/50 hover:bg-primary text-white'}`} 
+            ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-black text-white hover:bg-white hover:text-black border-2 border-black' : 'bg-black/50 hover:bg-primary text-white border border-white/10'}`} 
             title="Editar">
           <span className="material-symbols-outlined text-[16px]">edit</span>
         </button>

@@ -21,7 +21,11 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background-light dark:bg-background-dark text-slate-900 dark:text-white">
+    <div className="flex h-screen w-full overflow-hidden bg-background-dark text-slate-100 relative selection:bg-primary/30 selection:text-white">
+      {/* Ambient Background Glows */}
+      <div className="absolute top-[10%] left-[5%] w-[40vw] h-[40vw] bg-primary/10 rounded-full blur-[150px] pointer-events-none z-0 mix-blend-screen"></div>
+      <div className="absolute bottom-[0%] right-[0%] w-[40vw] h-[40vw] bg-accent/10 rounded-full blur-[150px] pointer-events-none z-0 mix-blend-screen"></div>
+
       {/* SideNavBar */}
       <Sidebar 
         onNavigate={setCurrentView} 
@@ -29,11 +33,11 @@ function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-full relative overflow-hidden">
+      <main className="flex-1 flex flex-col h-full relative z-10 overflow-hidden backdrop-blur-[2px]">
         <TopBar onMenuClick={() => {}} />
 
         {/* Scrollable Page Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-20">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 grid-bg">
             {renderContent()}
         </div>
       </main>
