@@ -23,6 +23,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         slideCount: 5,
         tone: ToneType.PROFESSIONAL,
         style: VisualStyleType.GRADIENT_TECH,
+        customStylePrompt: '', // Inicializando campo de estilo custom
         goal: CarouselGoal.AUTHORITY,
         inputType: 'topic',
         includePeople: false,
@@ -66,6 +67,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         const lines = [
             `TEMA: ${data.topic}`,
             `RESUMO: ${data.overview}`,
+            `ANÁLISE DE REFERÊNCIA: ${data.referenceAnalysis || 'N/A'}`,
             "---------------------------------------------------",
             ""
         ];
@@ -282,6 +284,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                         slide={slide} 
                                         totalSlides={data.slides.length}
                                         style={config.style}
+                                        referenceImage={config.referenceImage}
                                     />
                                 ))}
                                 <div ref={resultsEndRef} />

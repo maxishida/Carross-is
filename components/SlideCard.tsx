@@ -5,11 +5,11 @@ interface SlideCardProps {
   slide: Slide;
   totalSlides: number;
   style: VisualStyleType;
+  referenceImage?: string; // Prop nova
 }
 
-const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style }) => {
+const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, referenceImage }) => {
   
-  // Dynamic styling based on the selected visual style
   const getCardStyle = () => {
     switch (style) {
       case VisualStyleType.CLEAN_LIGHT:
@@ -48,67 +48,37 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style }) => {
     if (style === VisualStyleType.GRADIENT_TECH) {
       return <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-10 opacity-60"></div>;
     }
-    if (style === VisualStyleType.RETRO_FUTURISM) {
-        return <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-900/20 to-black/80 z-10 opacity-70"></div>;
-    }
     return null;
   };
 
-  const getBackgroundAccent = () => {
-      switch(style) {
-        case VisualStyleType.NEO_BRUTALISM:
-            return (
-                <>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400 rounded-full border-2 border-black transform translate-x-10 -translate-y-10 opacity-100 z-0"></div>
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500 border-2 border-black transform -translate-x-5 translate-y-5 rotate-12 z-0"></div>
-                </>
-            );
-        case VisualStyleType.THREE_D_ISOMETRIC:
-             return (
-                <div className="absolute inset-0 opacity-10 z-0" style={{backgroundImage: 'radial-gradient(#3b82f6 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
-             );
-        case VisualStyleType.THREE_D_CLAYMORPHISM:
-             return (
-                <>
-                  <div className="absolute top-10 right-10 size-20 rounded-full bg-white/40 blur-xl"></div>
-                  <div className="absolute bottom-10 left-10 size-32 rounded-full bg-purple-300/30 blur-2xl"></div>
-                </>
-             );
-        case VisualStyleType.THREE_D_CARTOON:
-             return (
-                <div className="absolute inset-0 z-0 overflow-hidden">
-                   <div className="absolute -top-10 -right-10 size-40 bg-yellow-300 rounded-full opacity-50 blur-xl"></div>
-                   <div className="absolute -bottom-10 -left-10 size-40 bg-pink-600 rounded-full opacity-50 blur-xl"></div>
-                </div>
-             );
-        case VisualStyleType.MINIMAL_DARK:
-        case VisualStyleType.GRADIENT_TECH:
-             return (
-                <div className={`absolute inset-0 opacity-20 z-0 ${style === VisualStyleType.CLEAN_LIGHT ? 'bg-slate-100' : 'bg-slate-900'}`}>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl transform translate-x-10 -translate-y-10"></div>
-                    <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl transform -translate-x-10 translate-y-10"></div>
-                </div>
-            );
-        default: return null;
-      }
-  }
+  // Detecta se há referência pessoal no prompt para destacar
+  const hasPersonRef = slide.imagePrompt.toLowerCase().includes("person") || slide.imagePrompt.toLowerCase().includes("reference") || (referenceImage !== undefined);
 
   return (
     <div className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:scale-[1.01] ${getCardStyle()}`}>
       
+      {/* Reference Image Background Overlay (Ghosting) */}
+      {referenceImage && (
+        <div className="absolute inset-0 z-0">
+            <img 
+                src={referenceImage} 
+                className={`w-full h-full object-cover mix-blend-overlay opacity-30 grayscale transition-opacity group-hover:opacity-50`} 
+                alt="Reference Ghost" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
+        </div>
+      )}
+
       {/* Background/Visual Placeholder */}
       {getGradientOverlay()}
-      {getBackgroundAccent()}
 
       {/* Header */}
       <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
-        <span className={`text-4xl font-black ${style === VisualStyleType.NEO_BRUTALISM ? 'opacity-100 text-black' : 
-            style === VisualStyleType.HAND_DRAWN ? 'font-serif text-gray-500' : 
-            style === VisualStyleType.MAGAZINE ? 'font-serif text-black' : 'opacity-30'}`}>
+        <span className={`text-4xl font-black ${style === VisualStyleType.NEO_BRUTALISM ? 'opacity-100 text-black' : 'opacity-30'}`}>
             {String(slide.slideNumber).padStart(2, '0')}
         </span>
         <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded backdrop-blur-sm border 
-            ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-white border-black text-black border-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-white/10 border-white/10'}`}>
+            ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-white border-black text-black border-2' : 'bg-white/10 border-white/10'}`}>
             {slide.layoutSuggestion}
         </span>
       </div>
@@ -116,42 +86,31 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style }) => {
       {/* Content */}
       <div className="absolute inset-0 flex flex-col justify-center px-8 z-20 pt-10">
         <h3 className={`text-xl font-bold mb-4 leading-tight 
-            ${style === VisualStyleType.HAND_DRAWN ? 'font-serif text-red-700' : ''}
-            ${style === VisualStyleType.CLEAN_LIGHT || style === VisualStyleType.WATERCOLOR_MINIMAL || style === VisualStyleType.THREE_D_ISOMETRIC || style === VisualStyleType.THREE_D_CLAYMORPHISM ? 'text-slate-900' : 
-              style === VisualStyleType.NEO_BRUTALISM ? 'text-black' : 
-              style === VisualStyleType.MAGAZINE ? 'text-black font-serif italic' : 
-              style === VisualStyleType.HAND_DRAWN ? 'text-gray-900' : 'text-white'}`}>
+            ${style === VisualStyleType.CLEAN_LIGHT ? 'text-slate-900' : 
+              style === VisualStyleType.NEO_BRUTALISM ? 'text-black' : 'text-white'}`}>
           {slide.title}
         </h3>
         <p className={`text-sm font-body leading-relaxed 
-            ${style === VisualStyleType.CLEAN_LIGHT || style === VisualStyleType.WATERCOLOR_MINIMAL || style === VisualStyleType.THREE_D_ISOMETRIC || style === VisualStyleType.THREE_D_CLAYMORPHISM ? 'text-slate-600' : 
-              style === VisualStyleType.NEO_BRUTALISM ? 'text-gray-900 font-bold' : 
-              style === VisualStyleType.MAGAZINE ? 'text-gray-700 font-serif' :
-              style === VisualStyleType.HAND_DRAWN ? 'text-gray-600 font-serif italic' : 'text-gray-300'}`}>
+            ${style === VisualStyleType.CLEAN_LIGHT ? 'text-slate-600' : 
+              style === VisualStyleType.NEO_BRUTALISM ? 'text-gray-900 font-bold' : 'text-gray-300'}`}>
           {slide.content}
         </p>
       </div>
 
       {/* Footer / Prompt Info */}
-      <div className={`absolute bottom-0 left-0 right-0 p-4 z-30 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 border-t 
-         ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-white border-black border-t-2' : 
-           style === VisualStyleType.HAND_DRAWN ? 'bg-[#f0ece5] border-dashed border-gray-400' : 
-           'bg-black/60 backdrop-blur-xl border-white/10'}`}>
+      <div className={`absolute bottom-0 left-0 right-0 p-4 z-30 transform translate-y-[85%] group-hover:translate-y-0 transition-transform duration-300 border-t 
+         ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-white border-black border-t-2' : 'bg-black/80 backdrop-blur-xl border-white/10'}`}>
         <div className="flex flex-col gap-1">
-            <span className={`text-[10px] font-bold uppercase ${style === VisualStyleType.NEO_BRUTALISM || style === VisualStyleType.HAND_DRAWN || style === VisualStyleType.MAGAZINE ? 'text-black' : 'text-primary'}`}>Prompt Visual</span>
-            <p className={`text-[10px] line-clamp-3 font-mono ${style === VisualStyleType.NEO_BRUTALISM || style === VisualStyleType.HAND_DRAWN || style === VisualStyleType.MAGAZINE ? 'text-black' : 'text-slate-300'}`}>
+            <div className="flex justify-between items-center">
+                <span className={`text-[10px] font-bold uppercase ${hasPersonRef ? 'text-amber-400' : 'text-primary'}`}>
+                    {hasPersonRef ? '✦ Prompt com Personagem' : 'Prompt Visual'}
+                </span>
+                <span className="material-symbols-outlined text-[14px] opacity-50 group-hover:opacity-0 transition-opacity">expand_less</span>
+            </div>
+            <p className={`text-[10px] font-mono leading-tight ${style === VisualStyleType.NEO_BRUTALISM ? 'text-black' : 'text-slate-300'} ${hasPersonRef ? 'text-amber-100' : ''}`}>
                 {slide.imagePrompt}
             </p>
         </div>
-      </div>
-
-      {/* Hover Actions */}
-      <div className="absolute top-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button className={`size-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors
-            ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-black text-white hover:bg-white hover:text-black border-2 border-black' : 'bg-black/50 hover:bg-primary text-white border border-white/10'}`} 
-            title="Editar">
-          <span className="material-symbols-outlined text-[16px]">edit</span>
-        </button>
       </div>
     </div>
   );

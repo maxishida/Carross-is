@@ -1,3 +1,4 @@
+
 export interface Slide {
   slideNumber: number;
   title: string;
@@ -10,6 +11,7 @@ export interface Slide {
 export interface CarouselData {
   topic: string;
   overview: string;
+  referenceAnalysis?: string; // Novo campo para forçar a IA a descrever o que viu
   slides: Slide[];
 }
 
@@ -30,6 +32,7 @@ export interface GenerationConfig {
   slideCount: number;
   tone: ToneType;
   style: VisualStyleType;
+  customStylePrompt?: string; // Novo campo para prompt visual manual
   goal: CarouselGoal; 
   inputType: 'topic' | 'content'; 
   customTheme?: string;
@@ -97,6 +100,7 @@ export enum ToneType {
 }
 
 export enum VisualStyleType {
+  CUSTOM = 'Personalizado (Prompt)', // Opção adicionada no topo para destaque
   MINIMAL_DARK = 'Minimalista Dark',
   GRADIENT_TECH = 'Gradiente Tech',
   CLEAN_LIGHT = 'Clean Light',
@@ -110,8 +114,7 @@ export enum VisualStyleType {
   QUOTE_CARD = 'Cartões de Citação',
   THREE_D_ISOMETRIC = '3D Isométrico',
   THREE_D_CLAYMORPHISM = '3D Claymorphism',
-  THREE_D_CARTOON = '3D Cartoon',
-  CUSTOM = 'Personalizado'
+  THREE_D_CARTOON = '3D Cartoon'
 }
 
 export enum CharacterStyleType {
