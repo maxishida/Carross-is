@@ -53,7 +53,10 @@ export enum MotionStyle {
   CINEMATIC = 'Cinematic (Cinematográfico)',
   MINIMAL = 'Minimal (Minimalista)',
   LUXURY = 'Luxury (Luxuoso)',
-  DRAMATIC = 'Dramatic (Dramático)'
+  DRAMATIC = 'Dramatic (Dramático)',
+  SLOW_MOTION = 'Slow Motion (Câmera Lenta)',
+  GLITCH = 'Glitch / Cyberpunk',
+  WIPE = 'Wipe Transition (Transição)'
 }
 
 export enum MotionVisualTheme {

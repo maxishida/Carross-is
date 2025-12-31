@@ -125,15 +125,15 @@ export const generateVeoVideo = async (prompt: string, style: MotionStyle = Moti
     const apiKey = getApiKey();
     if (!apiKey) return null;
 
-    // Use fast model for fast/punchy style, otherwise high quality
-    const model = (style === MotionStyle.FAST_PUNCHY) 
+    // Use fast model for fast/punchy style OR glitch, otherwise high quality
+    const model = (style === MotionStyle.FAST_PUNCHY || style === MotionStyle.GLITCH) 
         ? 'veo-3.1-fast-generate-preview' 
         : 'veo-3.1-generate-preview';
 
     const ai = new GoogleGenAI({ apiKey });
 
     try {
-        console.log(`Starting generation with model: ${model}`);
+        console.log(`Starting generation with model: ${model} for style: ${style}`);
         let operation = await ai.models.generateVideos({
             model: model, 
             prompt: prompt,
