@@ -6,6 +6,7 @@ export interface Slide {
   visualDescription: string;
   imagePrompt: string;
   layoutSuggestion: SlideLayoutType;
+  generatedBackground?: string; // NOVO: Armazena a imagem gerada para o fundo
 }
 
 export enum SlideLayoutType {
