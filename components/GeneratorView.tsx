@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal, Slide } from '../types';
 import { generateCarousel, refineCarousel, generateSocialImage, editSocialImage } from '../services/geminiService';
@@ -6,6 +7,7 @@ import ConfigPanel from './ConfigPanel';
 import AssistantChat from './AssistantChat';
 import * as htmlToImageModule from 'html-to-image';
 import JSZip from 'jszip';
+import { jsPDF } from 'jspdf';
 
 interface GeneratorViewProps {
     onBack: () => void;
@@ -18,16 +20,31 @@ interface PreviewState {
     currentStep: number;
 }
 
+const LOADING_STEPS = [
+    "Analisando tópico e persona...",
+    "Definindo estratégia viral (AIDA)...",
+    "Escrevendo copys persuasivas...",
+    "Estruturando design visual...",
+    "Gerando prompts de arte...",
+    "Finalizando estrutura..."
+];
+
 const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
     const [inputValue, setInputValue] = useState('');
     const [refinementPrompt, setRefinementPrompt] = useState('');
+    
+    // Loading State
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState(LOADING_STEPS[0]);
+    
     const [isRefining, setIsRefining] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [data, setData] = useState<CarouselData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const [isMobilePreview, setIsMobilePreview] = useState(false);
+    const [isZenMode, setIsZenMode] = useState(false); // ZEN MODE STATE
+    
     const [generatingImages, setGeneratingImages] = useState<Record<number, boolean>>({});
     
     // --- EDITOR MODAL STATE ---
@@ -53,6 +70,27 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         customTheme: ''
     });
 
+    // --- AUTO SAVE & RECOVERY ---
+    useEffect(() => {
+        const savedData = localStorage.getItem('autosave_carousel_data');
+        if (savedData && !data) {
+            try {
+                const parsed = JSON.parse(savedData);
+                // Optional: ask user first. For now, auto-load if empty.
+                if (confirm("Encontramos um rascunho não salvo. Deseja recuperar?")) {
+                    setData(parsed);
+                }
+            } catch(e) { console.error("Error loading autosave", e); }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (data) {
+            localStorage.setItem('autosave_carousel_data', JSON.stringify(data));
+        }
+    }, [data]);
+
+
     const handleUpdateSlide = (updatedSlide: Slide) => {
         if (!data) return;
         const newSlides = data.slides.map(s => 
@@ -61,16 +99,44 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         setData({ ...data, slides: newSlides });
     };
 
+    // --- REORDERING LOGIC ---
+    const handleMoveSlide = (index: number, direction: 'left' | 'right') => {
+        if (!data) return;
+        const newSlides = [...data.slides];
+        const targetIndex = direction === 'left' ? index - 1 : index + 1;
+        
+        // Bounds check
+        if (targetIndex < 0 || targetIndex >= newSlides.length) return;
+        
+        // Swap
+        [newSlides[index], newSlides[targetIndex]] = [newSlides[targetIndex], newSlides[index]];
+        
+        // Renumber slides to keep logical order in UI
+        newSlides.forEach((s, i) => s.slideNumber = i + 1);
+        
+        setData({...data, slides: newSlides});
+    };
+
     const handleGenerate = async () => {
         if (!inputValue.trim()) return;
+        
         setIsLoading(true);
         setError(null);
         setData(null);
         setGeneratingImages({});
 
+        // Start cycling loading messages
+        let stepIndex = 0;
+        const intervalId = setInterval(() => {
+            stepIndex = (stepIndex + 1) % LOADING_STEPS.length;
+            setLoadingMessage(LOADING_STEPS[stepIndex]);
+        }, 1500);
+
         try {
             // STEP 1: Generate Text Structure & Visual Prompts
             const result = await generateCarousel(inputValue, config);
+            clearInterval(intervalId);
+            
             if(!result) throw new Error("Falha ao gerar estrutura.");
             setData(result);
             
@@ -95,6 +161,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
             });
 
         } catch (err) {
+            clearInterval(intervalId);
             setError('Ocorreu um erro ao gerar o carrossel. Tente novamente.');
             console.error(err);
         } finally {
@@ -232,49 +299,65 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
     };
 
     // --- VISUAL EXPORT LOGIC ---
-    const handleExportImages = async () => {
+    const handleExportImages = async (format: 'zip' | 'pdf' = 'zip') => {
         if (!data) return;
         setIsDownloading(true);
 
         try {
-            const zip = new JSZip();
             // Get elements by ID pattern we set in SlideCard
             const slideElements = data.slides.map(slide => document.getElementById(`slide-card-${slide.slideNumber}`));
             
-            // Fix for html-to-image import issues
             const toPng = htmlToImageModule.toPng || (htmlToImageModule as any).default?.toPng;
             if (!toPng) throw new Error("Library import failed");
 
-            const promises = slideElements.map(async (element, index) => {
-                if (!element) return;
-                
+            const imageDataPromises = slideElements.map(async (element) => {
+                if (!element) return null;
                 const options: any = { 
                     pixelRatio: 2, // High res export
                     skipFonts: true,
                     // Filter out UI elements if not handled by data-html2canvas-ignore
                     filter: (node: any) => node.tagName !== 'LINK' 
                 };
-
-                const dataUrl = await toPng(element as HTMLElement, options);
-                const base64Data = dataUrl.split(',')[1];
-                zip.file(`slide_${index + 1}.png`, base64Data, { base64: true });
+                return await toPng(element as HTMLElement, options);
             });
 
-            await Promise.all(promises);
-            const content = await zip.generateAsync({ type: 'blob' });
-            
-            const url = URL.createObjectURL(content);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Carrossel_Imagens_${data.topic.substring(0, 15).replace(/\s/g, "_")}.zip`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const images = await Promise.all(imageDataPromises);
+            const validImages = images.filter((img): img is string => img !== null);
+
+            if (format === 'zip') {
+                const zip = new JSZip();
+                validImages.forEach((img, index) => {
+                     const base64Data = img.split(',')[1];
+                     zip.file(`slide_${index + 1}.png`, base64Data, { base64: true });
+                });
+                const content = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Carrossel_${data.topic.substring(0, 15)}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                URL.revokeObjectURL(url);
+            } else {
+                // PDF EXPORT
+                // 1080x1350 aspect ratio (4:5) usually
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'px',
+                    format: [1080, 1350] // Default standard instagram
+                });
+
+                validImages.forEach((img, index) => {
+                    if (index > 0) pdf.addPage();
+                    pdf.addImage(img, 'PNG', 0, 0, 1080, 1350);
+                });
+
+                pdf.save(`Carrossel_LinkedIn_${data.topic.substring(0, 15)}.pdf`);
+            }
 
         } catch (err) {
             console.error("Erro exportação visual:", err);
-            setError("Falha ao gerar imagens. Tente novamente.");
+            setError("Falha ao gerar arquivos. Tente novamente.");
         } finally {
             setIsDownloading(false);
         }
@@ -460,26 +543,40 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                     </div>
                 </div>
                 
-                <button 
-                    onClick={() => setIsAssistantOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/50 text-white rounded-full shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:bg-primary/30 transition-all group"
-                >
-                    <span className="material-symbols-outlined group-hover:rotate-12 transition-transform">smart_toy</span>
-                    <span className="text-sm font-bold hidden sm:inline">Co-piloto IA</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* ZEN MODE TOGGLE */}
+                    <button 
+                        onClick={() => setIsZenMode(!isZenMode)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-xs font-bold ${isZenMode ? 'bg-white text-black border-white' : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'}`}
+                        title="Modo Foco"
+                    >
+                        <span className="material-symbols-outlined text-[18px]">self_improvement</span>
+                        <span className="hidden sm:inline">Zen Mode</span>
+                    </button>
+                    
+                    <button 
+                        onClick={() => setIsAssistantOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/50 text-white rounded-full shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:bg-primary/30 transition-all group"
+                    >
+                        <span className="material-symbols-outlined group-hover:rotate-12 transition-transform">smart_toy</span>
+                        <span className="text-sm font-bold hidden sm:inline">Co-piloto IA</span>
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start h-full">
-                {/* Configuration Sidebar */}
-                <div className="lg:col-span-3 order-2 lg:order-1">
-                    <ConfigPanel config={config} setConfig={setConfig} disabled={isLoading || isRefining} />
-                </div>
+                {/* Configuration Sidebar - Hidden in Zen Mode */}
+                {!isZenMode && (
+                    <div className="lg:col-span-3 order-2 lg:order-1 animate-in fade-in slide-in-from-left-4 duration-300">
+                        <ConfigPanel config={config} setConfig={setConfig} disabled={isLoading || isRefining} />
+                    </div>
+                )}
 
-                {/* Main Content */}
-                <div className="lg:col-span-9 order-1 lg:order-2 flex flex-col gap-8 pb-24">
+                {/* Main Content - Expands in Zen Mode */}
+                <div className={`${isZenMode ? 'lg:col-span-12' : 'lg:col-span-9'} order-1 lg:order-2 flex flex-col gap-8 pb-24 transition-all duration-300`}>
                     
                     {/* Glass Input Panel */}
-                    <div className="glass-panel p-1 rounded-2xl shadow-2xl shadow-black/40 ring-1 ring-white/5">
+                    <div className={`glass-panel p-1 rounded-2xl shadow-2xl shadow-black/40 ring-1 ring-white/5 transition-all duration-500 ${isZenMode ? 'opacity-50 hover:opacity-100' : ''}`}>
                         {/* Tabs */}
                         <div className="flex border-b border-white/5 px-2 pt-2 gap-1">
                             <button 
@@ -591,12 +688,35 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                         )}
 
                         <div className="w-full overflow-x-auto pb-8 pt-2 custom-scrollbar min-h-[420px]">
-                            <div className="flex gap-6 min-w-max px-1">
-                                {isLoading && Array.from({ length: config.slideCount }).map((_, i) => (
-                                    <div key={i} className="w-[300px] aspect-[4/5] rounded-xl bg-slate-800/50 animate-pulse border border-white/5 relative overflow-hidden backdrop-blur-sm">
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
+                            <div className={`flex gap-6 min-w-max px-1 ${isZenMode ? 'justify-center' : ''}`}>
+                                {isLoading && (
+                                    <div className="w-full h-[420px] rounded-3xl bg-[#030712]/80 border border-white/10 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden backdrop-blur-md">
+                                        {/* STORYTELLER LOADING OVERLAY */}
+                                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 animate-pulse"></div>
+                                        
+                                        <div className="relative z-10 flex flex-col items-center gap-6">
+                                            <div className="relative">
+                                                <div className="size-24 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
+                                                <span className="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl text-primary animate-pulse">auto_awesome</span>
+                                            </div>
+                                            
+                                            <div className="flex flex-col gap-2">
+                                                <h3 className="text-2xl font-bold text-white font-display tracking-tight animate-fade-in-up">
+                                                    Criando Experiência
+                                                </h3>
+                                                <p className="text-primary font-mono text-sm uppercase tracking-widest animate-pulse">
+                                                    {loadingMessage}
+                                                </p>
+                                            </div>
+
+                                            <div className="flex gap-2 mt-4">
+                                                 <span className="w-2 h-2 rounded-full bg-slate-500 animate-bounce delay-100"></span>
+                                                 <span className="w-2 h-2 rounded-full bg-slate-500 animate-bounce delay-200"></span>
+                                                 <span className="w-2 h-2 rounded-full bg-slate-500 animate-bounce delay-300"></span>
+                                            </div>
+                                        </div>
                                     </div>
-                                ))}
+                                )}
 
                                 {!isLoading && !data && (
                                     <div className="border border-white/10 rounded-3xl bg-[#030712]/60 w-full min-h-[420px] flex flex-col items-center justify-center p-8 text-center relative overflow-hidden group shadow-inner">
@@ -645,6 +765,8 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                             brandColor={config.brandColor} 
                                             onUpdate={handleUpdateSlide} 
                                             isMobileMode={isMobilePreview}
+                                            onMoveLeft={() => handleMoveSlide(index, 'left')}
+                                            onMoveRight={() => handleMoveSlide(index, 'right')}
                                         />
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center justify-center pointer-events-none rounded-xl">
                                             <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 rounded-full flex items-center gap-2">
@@ -689,19 +811,23 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                     className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:border-white/30 transition-all bg-black/20"
                                 >
                                     <span className="material-symbols-outlined text-sm">description</span>
-                                    Baixar Roteiro (.txt)
+                                    Roteiro
                                 </button>
                                 <button 
-                                    onClick={handleExportImages}
+                                    onClick={() => handleExportImages('pdf')}
+                                    disabled={isDownloading}
+                                    className="text-xs font-bold text-white flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/20"
+                                >
+                                    {isDownloading ? <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> : <span className="material-symbols-outlined text-sm">picture_as_pdf</span>}
+                                    PDF (LinkedIn)
+                                </button>
+                                <button 
+                                    onClick={() => handleExportImages('zip')}
                                     disabled={isDownloading}
                                     className="text-xs font-bold text-white flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/20"
                                 >
-                                    {isDownloading ? (
-                                        <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                                    ) : (
-                                        <span className="material-symbols-outlined text-sm">download_for_offline</span>
-                                    )}
-                                    Baixar Imagens (ZIP)
+                                    {isDownloading ? <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> : <span className="material-symbols-outlined text-sm">download_for_offline</span>}
+                                    Imagens (ZIP)
                                 </button>
                              </div>
                         )}

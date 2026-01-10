@@ -1,6 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { GenerationConfig, ToneType, VisualStyleType, CharacterStyleType, CarouselGoal, StyleCategory } from '../types';
+import { analyzeImageStyle } from '../services/geminiService';
 
 interface ConfigPanelProps {
   config: GenerationConfig;
@@ -10,7 +11,7 @@ interface ConfigPanelProps {
 }
 
 const STYLES_BY_CATEGORY: Record<StyleCategory, string[]> = {
-    [StyleCategory.COMMERCIAL]: ["Neon Tech", "Cyber Promo", "Premium Black & Gold", "Oferta Explosiva", "Flash Sale Dinâmica", "Desconto Minimalista", "Vitrine 3D", "Produto Flutuante", "Tech Clean", "Marketplace Moderno"],
+    [StyleCategory.COMMERCIAL]: ["Neon Tech", "Cyber Promo", "Premium Black & Gold", "Oferta Explosiva", "Flash Sale Dinâmica", "Desconto Minimalista", "Vitrine 3D", "Produto Flutuante", "Tech Clean", "Marketplace Moderno", "Personalizado (Prompt)"],
     [StyleCategory.BRANDING]: ["Branding Minimal", "Luxo Sofisticado", "Corporativo Moderno", "Visual Institucional", "Startup Tech", "Clean Business", "Profissional Elegante", "Branding Futurista", "Marca Premium", "Estilo Editorial"],
     [StyleCategory.SOCIAL]: ["Carrossel Informativo", "Post Educativo", "Conteúdo de Valor", "Story Dinâmico", "Reels Promocional", "Feed Harmonizado", "Destaque de Benefícios", "Chamada para Ação", "Conteúdo Engajador", "Post de Conversão"],
     [StyleCategory.CREATIVE]: ["Futurista Neon", "Estilo Metaverso", "Visual Holográfico", "Estética Cyberpunk", "Arte Digital", "Design 3D", "Visual Isométrico", "Estilo UI/UX", "Visual Gamer", "Tech Dark Mode"],
@@ -72,12 +73,46 @@ const BRAND_PRESETS = [
 
 const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, hideSlideCount }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loadedDefaults, setLoadedDefaults] = useState(false);
+  const [analyzingStyle, setAnalyzingStyle] = useState(false);
   
+  // --- PERSISTENT BRAND KIT ---
   useEffect(() => {
-      if (!config.styleCategory) {
-          setConfig(prev => ({ ...prev, styleCategory: StyleCategory.COMMERCIAL, style: STYLES_BY_CATEGORY[StyleCategory.COMMERCIAL][0] }));
+      // Load Brand Kit from local storage on mount
+      const savedKit = localStorage.getItem('user_brand_kit');
+      if (savedKit) {
+          try {
+              const kit = JSON.parse(savedKit);
+              setConfig(prev => ({
+                  ...prev,
+                  brandColor: kit.brandColor || prev.brandColor,
+                  styleCategory: kit.styleCategory || prev.styleCategory,
+                  style: kit.style || prev.style,
+                  tone: kit.tone || prev.tone
+              }));
+          } catch(e) { console.error(e); }
+      } else {
+          // Default init
+          if (!config.styleCategory) {
+              setConfig(prev => ({ ...prev, styleCategory: StyleCategory.COMMERCIAL, style: STYLES_BY_CATEGORY[StyleCategory.COMMERCIAL][0] }));
+          }
       }
+      setLoadedDefaults(true);
   }, []);
+
+  // Save Brand Kit whenever relevant config changes
+  useEffect(() => {
+      if (!loadedDefaults) return;
+      
+      const kitToSave = {
+          brandColor: config.brandColor,
+          styleCategory: config.styleCategory,
+          style: config.style,
+          tone: config.tone
+      };
+      localStorage.setItem('user_brand_kit', JSON.stringify(kitToSave));
+  }, [config.brandColor, config.styleCategory, config.style, config.tone, loadedDefaults]);
+
 
   const handleToneChange = (tone: ToneType) => {
     setConfig(prev => ({ ...prev, tone }));
@@ -102,6 +137,30 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       };
       reader.readAsDataURL(file);
     }
+  };
+  
+  const handleAnalyzeStyle = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!config.referenceImage) return;
+      
+      setAnalyzingStyle(true);
+      try {
+          const stylePrompt = await analyzeImageStyle(config.referenceImage);
+          if (stylePrompt) {
+              setConfig(prev => ({
+                  ...prev,
+                  styleCategory: StyleCategory.COMMERCIAL, // Fallback category
+                  style: 'Personalizado (Prompt)',
+                  customStylePrompt: stylePrompt
+              }));
+              alert("Estilo clonado com sucesso! O prompt personalizado foi atualizado.");
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Falha ao analisar imagem.");
+      } finally {
+          setAnalyzingStyle(false);
+      }
   };
 
   const removeImage = (e: React.MouseEvent) => {
@@ -236,7 +295,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
          </div>
       </div>
 
-      {/* Visual Reference */}
+      {/* Visual Reference with Style Analysis */}
       <div className="flex flex-col gap-2">
          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
              Referência Visual (IA)
@@ -251,15 +310,31 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                  <p className="text-[10px] text-slate-500">Carregar imagem de referência</p>
             </div>
          ) : (
-             <div className="relative rounded-xl overflow-hidden border border-white/20 group h-24">
-                 <img src={config.referenceImage} className="w-full h-full object-cover" alt="Reference" />
-                 <button 
-                    onClick={removeImage}
-                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-                >
-                     <span className="material-symbols-outlined">delete</span>
+             <div className="flex flex-col gap-2">
+                 <div className="relative rounded-xl overflow-hidden border border-white/20 group h-24">
+                     <img src={config.referenceImage} className="w-full h-full object-cover" alt="Reference" />
+                     <button 
+                        onClick={removeImage}
+                        className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors z-20"
+                    >
+                         <span className="material-symbols-outlined text-[14px]">close</span>
+                     </button>
+                     <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white">Ref. Ativa</div>
+                 </div>
+                 
+                 {/* REVERSE ENGINEERING BUTTON */}
+                 <button
+                    onClick={handleAnalyzeStyle}
+                    disabled={analyzingStyle}
+                    className="w-full py-2 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 border border-purple-500/30 rounded-lg text-[10px] font-bold text-purple-200 flex items-center justify-center gap-2 transition-all"
+                 >
+                     {analyzingStyle ? (
+                         <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
+                     ) : (
+                         <span className="material-symbols-outlined text-[14px]">auto_fix_high</span>
+                     )}
+                     {analyzingStyle ? 'Analisando Estilo...' : 'Clonar Estilo Visual'}
                  </button>
-                 <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white">Ref. Ativa</div>
              </div>
          )}
          <input 
@@ -322,6 +397,16 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                  </button>
              ))}
          </div>
+         
+         {/* Custom Prompt Display if active */}
+         {config.style === 'Personalizado (Prompt)' && (
+             <textarea 
+                className="w-full h-20 bg-black/20 border border-white/10 rounded-lg p-2 text-[10px] text-slate-300 resize-none"
+                placeholder="Descreva o estilo visual..."
+                value={config.customStylePrompt || ''}
+                onChange={(e) => setConfig(prev => ({...prev, customStylePrompt: e.target.value}))}
+             />
+         )}
       </div>
 
       {/* Tone Selector */}

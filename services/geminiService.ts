@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { CarouselData, CreativeData, GenerationConfig, VisualStyleType, CharacterStyleType, ToneType, CarouselGoal, MotionConfig, MotionResult, MotionStyle, SlideLayoutType } from "../types";
 
@@ -157,6 +158,30 @@ const creativeSchema: Schema = {
 };
 
 // --- API FUNCTIONS ---
+
+export const analyzeImageStyle = async (base64Image: string): Promise<string> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return "";
+    const ai = new GoogleGenAI({ apiKey });
+
+    const cleanBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview", // Supports vision
+            contents: {
+                parts: [
+                    { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+                    { text: "Analise esta imagem e crie um prompt de design detalhado para recriar este ESTILO exato. Foque em: Iluminação, Paleta de Cores, Textura, Composição e Vibe. Seja técnico (ex: 'cinematic lighting', 'bokeh', 'neon'). Retorne APENAS o prompt em inglês." }
+                ]
+            }
+        });
+        return response.text || "";
+    } catch (error) {
+        console.error("Error analyzing image style:", error);
+        throw error;
+    }
+};
 
 export const generateSocialImage = async (prompt: string, aspectRatio: '1:1' | '9:16' | '16:9' = '1:1'): Promise<string | null> => {
     const apiKey = getApiKey();
@@ -504,6 +529,24 @@ export const refineCarousel = async (currentData: CarouselData, instruction: str
         throw error;
     }
 };
+
+export const rewriteSlideContent = async (text: string, context: string = 'Reescreva para ser mais impactante e curto'): Promise<string | null> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+    const ai = new GoogleGenAI({ apiKey });
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `Texto original: "${text}". Contexto: ${context}. Me dê apenas a versão reescrita, sem aspas.`,
+        });
+        return response.text || text;
+    } catch (error) {
+        console.error("Error rewriting text:", error);
+        return null;
+    }
+}
+
 
 export const chatWithAssistant = async (message: string, history: { role: 'user' | 'model'; parts: { text: string }[] }[]): Promise<string> => {
     const apiKey = getApiKey();

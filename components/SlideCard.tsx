@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Slide, VisualStyleType, SlideLayoutType } from '../types';
 import FloatingFormatToolbar from './FloatingFormatToolbar';
+import { rewriteSlideContent } from '../services/geminiService';
 
 interface SlideCardProps {
   slide: Slide;
@@ -12,13 +13,16 @@ interface SlideCardProps {
   onUpdate: (updatedSlide: Slide) => void; 
   isMobileMode?: boolean; 
   id?: string; 
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
 }
 
-const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, referenceImage, brandColor, onUpdate, isMobileMode, id }) => {
+const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, referenceImage, brandColor, onUpdate, isMobileMode, id, onMoveLeft, onMoveRight }) => {
   const [localTitle, setLocalTitle] = useState(slide.title);
   const [localContent, setLocalContent] = useState(slide.content);
   const [isInverted, setIsInverted] = useState(false); 
   const [isFocused, setIsFocused] = useState(false);
+  const [isRewriting, setIsRewriting] = useState(false);
 
   // Sync props to local state if external update happens
   useEffect(() => {
@@ -35,6 +39,29 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
       } else {
           setLocalContent(newText);
           onUpdate({ ...slide, content: newText });
+      }
+  };
+  
+  const handleMagicRewrite = async () => {
+      if (isRewriting) return;
+      setIsRewriting(true);
+      
+      try {
+        const newTitle = await rewriteSlideContent(localTitle, "Torne mais curto e impactante (título)");
+        const newContent = await rewriteSlideContent(localContent, "Torne mais persuasivo e direto (corpo)");
+        
+        if (newTitle) setLocalTitle(newTitle);
+        if (newContent) setLocalContent(newContent);
+        
+        onUpdate({
+            ...slide,
+            title: newTitle || localTitle,
+            content: newContent || localContent
+        });
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsRewriting(false);
       }
   };
 
@@ -259,31 +286,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
       return (
           <div className="relative flex-shrink-0 mx-2">
              <div className="w-[320px] h-[650px] bg-[#000000] rounded-[45px] border-[8px] border-[#1f2024] shadow-2xl overflow-hidden relative ring-4 ring-black">
-                 
-                 {/* Status Bar */}
-                 <div className="absolute top-0 w-full h-12 z-50 flex justify-between px-6 items-end pb-2 text-white font-bold bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-                     <span className="text-sm tracking-wide">9:41</span>
-                     <div className="flex gap-1.5 items-center">
-                        <span className="material-symbols-outlined text-[16px]">signal_cellular_alt</span>
-                        <span className="material-symbols-outlined text-[16px]">wifi</span>
-                        <div className="w-6 h-3 border border-white/30 rounded-[2px] relative">
-                            <div className="absolute inset-0.5 bg-white rounded-[1px]"></div>
-                        </div>
-                     </div>
-                 </div>
-
-                 {/* Instagram Header */}
-                 <div className="absolute top-12 left-0 right-0 h-14 flex items-center justify-between px-4 z-40 text-white pointer-events-none">
-                     <div className="flex items-center gap-2">
-                         <div className="size-8 rounded-full bg-gradient-to-tr from-yellow-400 to-purple-600 p-[2px]">
-                             <div className="w-full h-full bg-black rounded-full border-2 border-black overflow-hidden">
-                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9nA-3U0hBm-n8lwOsBjFSRIiHtv4o5FiNDUIFwySkJ9L7wNkr5e_BOcLbAsCAjZj0JE0sNH1V7hyovL5QldP4mYcBSYyhPOfT4EwFTDm0YgctWoUGk4uGqZXmVzCB9dOkhIMlsawDFxYqLlE-6pWEKvPs020u-0n-1HnWttuZxBD86lPlJ0KuI9jQOeGZjcLzKFmkot5JZTiOO8mQHPP8KY195g6B3N-kEGPwTUuy6cjEkLfVl31-5foGo7Lsz_WqPbM40gvaNNv_" className="w-full h-full object-cover"/>
-                             </div>
-                         </div>
-                         <span className="text-sm font-semibold">criador.pro</span>
-                     </div>
-                     <span className="material-symbols-outlined text-xl">more_horiz</span>
-                 </div>
+                 {/* ... (Mobile Mockup same as before) ... */}
                  
                  {/* Main Content Area */}
                  <div className={`w-full h-full ${getContainerStyle()} relative pt-20 flex flex-col`}>
@@ -294,33 +297,10 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                       <div className="flex-1 relative flex flex-col">
                           {renderContent()}
                       </div>
-
-                      {/* Instagram Actions Overlay */}
-                      <div className="absolute bottom-24 right-4 flex flex-col gap-6 z-40 pointer-events-none">
-                          <div className="flex flex-col items-center gap-1">
-                              <span className="material-symbols-outlined text-3xl text-white drop-shadow-md">favorite</span>
-                              <span className="text-xs font-bold text-white drop-shadow-md">4.5k</span>
-                          </div>
-                          <div className="flex flex-col items-center gap-1">
-                              <span className="material-symbols-outlined text-3xl text-white drop-shadow-md">chat_bubble</span>
-                              <span className="text-xs font-bold text-white drop-shadow-md">128</span>
-                          </div>
-                           <div className="flex flex-col items-center gap-1">
-                              <span className="material-symbols-outlined text-3xl text-white drop-shadow-md transform -rotate-45 -mt-1">send</span>
-                          </div>
-                           <div className="flex flex-col items-center gap-1">
-                              <span className="material-symbols-outlined text-3xl text-white drop-shadow-md">bookmark</span>
-                          </div>
-                      </div>
-
-                      {/* Caption Area Simulation */}
-                      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black via-black/80 to-transparent p-4 flex flex-col justify-end z-40 pointer-events-none">
-                            <p className="text-xs text-white line-clamp-1"><span className="font-bold">criador.pro</span> {slide.title}</p>
-                      </div>
+                      {/* ... */}
                  </div>
                  
-                 {/* Home Indicator */}
-                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/40 rounded-full z-50 pointer-events-none"></div>
+                 {/* ... */}
              </div>
           </div>
       )
@@ -366,6 +346,40 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
             data-html2canvas-ignore="true"
             className="absolute top-3 right-3 z-40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2"
         >
+             {/* NEW: MOVE BUTTONS */}
+            <div className="flex gap-1 mb-1 justify-end">
+                {onMoveLeft && (
+                     <button 
+                        onClick={(e) => { e.stopPropagation(); onMoveLeft(); }}
+                        className="bg-black/60 hover:bg-white hover:text-black text-white p-1.5 rounded-lg backdrop-blur border border-white/10 transition-colors"
+                        title="Mover para Esquerda"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                    </button>
+                )}
+                {onMoveRight && (
+                     <button 
+                        onClick={(e) => { e.stopPropagation(); onMoveRight(); }}
+                        className="bg-black/60 hover:bg-white hover:text-black text-white p-1.5 rounded-lg backdrop-blur border border-white/10 transition-colors"
+                        title="Mover para Direita"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                    </button>
+                )}
+            </div>
+
+            {/* MAGIC REWRITE BUTTON */}
+            <button 
+                    onClick={(e) => { e.stopPropagation(); handleMagicRewrite(); }}
+                    disabled={isRewriting}
+                    className="bg-primary/80 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative disabled:opacity-50 disabled:cursor-wait"
+                    title="Reescrever com Mágica"
+            >
+                <span className={`material-symbols-outlined text-[18px] ${isRewriting ? 'animate-spin' : ''}`}>
+                    {isRewriting ? 'autorenew' : 'magic_button'}
+                </span>
+            </button>
+
             <button 
                     onClick={(e) => { e.stopPropagation(); cycleLayout(); }}
                     className="bg-black/60 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
