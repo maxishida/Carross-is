@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Slide, VisualStyleType, SlideLayoutType } from '../types';
+import FloatingFormatToolbar from './FloatingFormatToolbar';
 
 interface SlideCardProps {
   slide: Slide;
@@ -10,20 +11,31 @@ interface SlideCardProps {
   brandColor?: string;
   onUpdate: (updatedSlide: Slide) => void; 
   isMobileMode?: boolean; 
-  id?: string; // Added for export targeting
+  id?: string; 
 }
 
 const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, referenceImage, brandColor, onUpdate, isMobileMode, id }) => {
   const [localTitle, setLocalTitle] = useState(slide.title);
   const [localContent, setLocalContent] = useState(slide.content);
   const [isInverted, setIsInverted] = useState(false); 
+  const [isFocused, setIsFocused] = useState(false);
 
-  const handleBlur = () => {
-      onUpdate({
-          ...slide,
-          title: localTitle,
-          content: localContent
-      });
+  // Sync props to local state if external update happens
+  useEffect(() => {
+      setLocalTitle(slide.title);
+      setLocalContent(slide.content);
+  }, [slide.title, slide.content]);
+
+  const handleBlur = (field: 'title' | 'content', e: React.FocusEvent<HTMLDivElement>) => {
+      setIsFocused(false);
+      const newText = e.currentTarget.innerHTML; // Capture HTML for formatting
+      if (field === 'title') {
+          setLocalTitle(newText);
+          onUpdate({ ...slide, title: newText });
+      } else {
+          setLocalContent(newText);
+          onUpdate({ ...slide, content: newText });
+      }
   };
 
   const cycleLayout = () => {
@@ -36,106 +48,71 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
       });
   };
 
-  // Helper to detect if the style implies a Light Theme
   const isLightStyle = (styleName: string): boolean => {
       const lower = styleName.toLowerCase();
       return lower.includes('clean') || lower.includes('minimal') || lower.includes('white') || lower.includes('soft') || lower.includes('educativo') || lower.includes('bege');
   };
   
-  // Helper to detect if the style implies a Neon/Dark Theme
   const isNeonStyle = (styleName: string): boolean => {
       const lower = styleName.toLowerCase();
       return lower.includes('neon') || lower.includes('cyber') || lower.includes('dark') || lower.includes('glow') || lower.includes('gamer') || lower.includes('tech');
   };
 
   const getContainerStyle = () => {
-    // If we have a generated background, we use transparent bg to show it
     if (slide.generatedBackground) {
         return "bg-slate-900 border-white/10 text-white font-display";
     }
-
-    if (isInverted) {
-        return "bg-white text-black border-gray-200 font-sans";
-    }
-    if (isLightStyle(style)) {
-        return "bg-white text-slate-800 border-gray-200 font-sans";
-    }
-    if (isNeonStyle(style)) {
-        return "bg-slate-900 text-white border-white/10 font-display shadow-neon-primary";
-    }
+    if (isInverted) return "bg-white text-black border-gray-200 font-sans";
+    if (isLightStyle(style)) return "bg-white text-slate-800 border-gray-200 font-sans";
+    if (isNeonStyle(style)) return "bg-slate-900 text-white border-white/10 font-display shadow-neon-primary";
     return "bg-[#1a1a1a] text-white border-gray-800 font-sans";
   };
 
   const getTextColors = () => {
-       // Contrast adjustment for generated backgrounds
-       if (slide.generatedBackground) {
-            return { title: 'text-white drop-shadow-md', body: 'text-white drop-shadow-md', number: 'text-white/50' };
-       }
-
+       if (slide.generatedBackground) return { title: 'text-white drop-shadow-md', body: 'text-white drop-shadow-md', number: 'text-white/50' };
        if (isInverted) return { title: 'text-black', body: 'text-slate-800', number: 'text-slate-900/20' };
-
-       if (isLightStyle(style)) {
-           return { title: 'text-slate-900', body: 'text-slate-600', number: 'text-slate-300' };
-       }
+       if (isLightStyle(style)) return { title: 'text-slate-900', body: 'text-slate-600', number: 'text-slate-300' };
        return { title: 'text-white', body: 'text-gray-300', number: 'text-white/20' };
   };
 
   const colors = getTextColors();
-  
   const brandStyle = brandColor ? { color: brandColor } : {};
   const brandBgStyle = brandColor ? { backgroundColor: brandColor } : {};
-  const brandGradientText = brandColor ? { 
-      background: `linear-gradient(to right, ${brandColor}, white)`,
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent'
-  } : {};
-  
   const neonShadow = (brandColor && isNeonStyle(style) && !slide.generatedBackground) ? { boxShadow: `0 0 20px ${brandColor}40` } : {};
 
-  // Background Decorativo (Pattern/Gradient) or Generated Image
   const renderBackgroundDecor = () => {
     if (slide.generatedBackground) {
         return (
             <>
-                {/* Use crossOrigin anonymous to allow html-to-image to capture external images if headers allow */}
                 <img src={slide.generatedBackground} alt="AI Background" className="absolute inset-0 w-full h-full object-cover z-0 animate-in fade-in duration-700" crossOrigin="anonymous" />
-                <div className="absolute inset-0 bg-black/40 z-0"></div> {/* Dimmer overlay for text readability */}
+                <div className="absolute inset-0 bg-black/40 z-0"></div> 
             </>
         );
     }
-
     if (isInverted) return null;
-    if (isNeonStyle(style)) {
-        return <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-slate-900/40 z-0"></div>;
-    }
+    if (isNeonStyle(style)) return <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-slate-900/40 z-0"></div>;
     return <div className="absolute inset-0 opacity-[0.05] pointer-events-none z-0 mix-blend-overlay" style={{backgroundImage: 'url("https://grainy-gradients.vercel.app/noise.svg")'}}></div>;
   };
 
   const renderGhostImage = (className: string) => {
       if (!referenceImage) return null;
       if (slide.layoutSuggestion === SlideLayoutType.TYPOGRAPHIC_CENTER) return null;
-
       return (
         <div className={`absolute ${className} overflow-hidden pointer-events-none`}>
-             <img 
-                src={referenceImage} 
-                className="w-full h-full object-cover mix-blend-overlay opacity-40 grayscale" 
-                alt="Reference Ghost" 
-                crossOrigin="anonymous"
-            />
+             <img src={referenceImage} className="w-full h-full object-cover mix-blend-overlay opacity-40 grayscale" alt="Ghost" crossOrigin="anonymous" />
             {className.includes('inset-0') && <div className="absolute inset-0 bg-black/60"></div>}
         </div>
       );
   };
 
-  // --- RENDERIZAÇÃO BASEADA EM LAYOUT ---
-
   const renderContent = () => {
+    const editableClass = "outline-none focus:bg-white/10 rounded px-1 border border-transparent focus:border-white/20 transition-colors cursor-text";
+    
     switch (slide.layoutSuggestion) {
         case SlideLayoutType.SPLIT_TOP_IMAGE:
             return (
                 <div className="flex flex-col h-full w-full relative z-10">
-                    <div className="h-[55%] w-full relative bg-slate-800/30 overflow-hidden transition-all duration-500 backdrop-blur-sm border-b border-white/10">
+                    <div className="h-[55%] w-full relative bg-slate-800/30 overflow-hidden backdrop-blur-sm border-b border-white/10">
                         {renderGhostImage('inset-0')}
                         {!referenceImage && !slide.generatedBackground && (
                             <div className="absolute inset-0 flex items-center justify-center opacity-30">
@@ -152,21 +129,19 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                         <div 
                             contentEditable
                             suppressContentEditableWarning
-                            onBlur={(e) => { setLocalTitle(e.currentTarget.innerText); handleBlur(); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`text-lg font-bold mb-3 leading-tight ${colors.title} outline-none focus:bg-white/10 rounded px-1 border border-transparent focus:border-white/20`}
-                        >
-                            {slide.title}
-                        </div>
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={(e) => handleBlur('title', e)}
+                            className={`text-lg font-bold mb-3 leading-tight ${colors.title} ${editableClass}`}
+                            dangerouslySetInnerHTML={{__html: localTitle}}
+                        />
                         <div 
                             contentEditable
                             suppressContentEditableWarning
-                            onBlur={(e) => { setLocalContent(e.currentTarget.innerText); handleBlur(); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`text-xs leading-relaxed ${colors.body} outline-none focus:bg-white/10 rounded px-1 border border-transparent focus:border-white/20`}
-                        >
-                            {slide.content}
-                        </div>
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={(e) => handleBlur('content', e)}
+                            className={`text-xs leading-relaxed ${colors.body} ${editableClass}`}
+                            dangerouslySetInnerHTML={{__html: localContent}}
+                        />
                     </div>
                 </div>
             );
@@ -188,21 +163,19 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                         <div 
                             contentEditable
                             suppressContentEditableWarning
-                            onBlur={(e) => { setLocalTitle(e.currentTarget.innerText); handleBlur(); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-xl font-bold text-white mb-3 shadow-black drop-shadow-lg outline-none focus:border-b border-white/30"
-                        >
-                            {slide.title}
-                        </div>
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={(e) => handleBlur('title', e)}
+                            className={`text-xl font-bold text-white mb-3 shadow-black drop-shadow-lg ${editableClass}`}
+                            dangerouslySetInnerHTML={{__html: localTitle}}
+                        />
                         <div 
                             contentEditable
                             suppressContentEditableWarning
-                            onBlur={(e) => { setLocalContent(e.currentTarget.innerText); handleBlur(); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-sm text-gray-200 font-medium leading-relaxed drop-shadow-md outline-none focus:border-b border-white/30"
-                        >
-                            {slide.content}
-                        </div>
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={(e) => handleBlur('content', e)}
+                            className={`text-sm text-gray-200 font-medium leading-relaxed drop-shadow-md ${editableClass}`}
+                            dangerouslySetInnerHTML={{__html: localContent}}
+                        />
                      </div>
                 </div>
             );
@@ -220,23 +193,20 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                          <h3 
                             contentEditable
                             suppressContentEditableWarning
-                            onBlur={(e) => { setLocalTitle(e.currentTarget.innerText); handleBlur(); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`text-2xl font-black mb-6 leading-tight ${colors.title} outline-none focus:bg-white/10 p-2 rounded`}
-                            style={brandColor && !isInverted && !slide.generatedBackground ? brandGradientText : {}}
-                         >
-                             {slide.title.toUpperCase()}
-                         </h3>
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={(e) => handleBlur('title', e)}
+                            className={`text-2xl font-black mb-6 leading-tight ${colors.title} ${editableClass} p-2`}
+                            dangerouslySetInnerHTML={{__html: localTitle}}
+                         />
                          <div className="w-16 h-1 bg-current opacity-20 mx-auto mb-6 rounded-full" style={brandBgStyle}></div>
                          <p 
                             contentEditable
                             suppressContentEditableWarning
-                            onBlur={(e) => { setLocalContent(e.currentTarget.innerText); handleBlur(); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`text-sm font-medium ${colors.body} outline-none focus:bg-white/10 p-1 rounded`}
-                         >
-                             {slide.content}
-                         </p>
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={(e) => handleBlur('content', e)}
+                            className={`text-sm font-medium ${colors.body} ${editableClass} p-1`}
+                            dangerouslySetInnerHTML={{__html: localContent}}
+                         />
                     </div>
                 </div>
             );
@@ -263,21 +233,19 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                         <div 
                             contentEditable
                             suppressContentEditableWarning
-                            onBlur={(e) => { setLocalTitle(e.currentTarget.innerText); handleBlur(); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`text-xl font-bold mb-4 ${colors.title} outline-none focus:bg-white/10 rounded px-1`}
-                        >
-                            {slide.title}
-                        </div>
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={(e) => handleBlur('title', e)}
+                            className={`text-xl font-bold mb-4 ${colors.title} ${editableClass}`}
+                            dangerouslySetInnerHTML={{__html: localTitle}}
+                        />
                         <div 
                             contentEditable
                             suppressContentEditableWarning
-                            onBlur={(e) => { setLocalContent(e.currentTarget.innerText); handleBlur(); }}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`text-sm ${colors.body} outline-none focus:bg-white/10 rounded px-1`}
-                        >
-                            {slide.content}
-                        </div>
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={(e) => handleBlur('content', e)}
+                            className={`text-sm ${colors.body} ${editableClass}`}
+                            dangerouslySetInnerHTML={{__html: localContent}}
+                        />
                      </div>
                 </div>
             );
@@ -286,83 +254,137 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
 
   const hasPersonRef = slide.imagePrompt.toLowerCase().includes("person") || slide.imagePrompt.toLowerCase().includes("reference") || (referenceImage !== undefined);
 
+  // --- MOBILE PREVIEW MOCKUP ---
   if (isMobileMode) {
       return (
           <div className="relative flex-shrink-0 mx-2">
-             <div className="w-[300px] h-[600px] bg-black rounded-[40px] border-[8px] border-slate-800 shadow-2xl overflow-hidden relative">
-                 <div className="absolute top-0 w-full h-8 z-50 flex justify-between px-6 items-center text-[10px] text-white font-bold bg-black/20 backdrop-blur-sm">
-                     <span>9:41</span>
-                     <div className="flex gap-1">
-                        <span className="material-symbols-outlined text-[14px]">signal_cellular_alt</span>
-                        <span className="material-symbols-outlined text-[14px]">wifi</span>
-                        <span className="material-symbols-outlined text-[14px]">battery_full</span>
+             <div className="w-[320px] h-[650px] bg-[#000000] rounded-[45px] border-[8px] border-[#1f2024] shadow-2xl overflow-hidden relative ring-4 ring-black">
+                 
+                 {/* Status Bar */}
+                 <div className="absolute top-0 w-full h-12 z-50 flex justify-between px-6 items-end pb-2 text-white font-bold bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+                     <span className="text-sm tracking-wide">9:41</span>
+                     <div className="flex gap-1.5 items-center">
+                        <span className="material-symbols-outlined text-[16px]">signal_cellular_alt</span>
+                        <span className="material-symbols-outlined text-[16px]">wifi</span>
+                        <div className="w-6 h-3 border border-white/30 rounded-[2px] relative">
+                            <div className="absolute inset-0.5 bg-white rounded-[1px]"></div>
+                        </div>
                      </div>
                  </div>
-                 
-                 <div className={`w-full h-full ${getContainerStyle()} relative pt-8 flex flex-col`}>
-                      {renderBackgroundDecor()}
-                      <div className="flex-1 relative">{renderContent()}</div>
+
+                 {/* Instagram Header */}
+                 <div className="absolute top-12 left-0 right-0 h-14 flex items-center justify-between px-4 z-40 text-white pointer-events-none">
+                     <div className="flex items-center gap-2">
+                         <div className="size-8 rounded-full bg-gradient-to-tr from-yellow-400 to-purple-600 p-[2px]">
+                             <div className="w-full h-full bg-black rounded-full border-2 border-black overflow-hidden">
+                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9nA-3U0hBm-n8lwOsBjFSRIiHtv4o5FiNDUIFwySkJ9L7wNkr5e_BOcLbAsCAjZj0JE0sNH1V7hyovL5QldP4mYcBSYyhPOfT4EwFTDm0YgctWoUGk4uGqZXmVzCB9dOkhIMlsawDFxYqLlE-6pWEKvPs020u-0n-1HnWttuZxBD86lPlJ0KuI9jQOeGZjcLzKFmkot5JZTiOO8mQHPP8KY195g6B3N-kEGPwTUuy6cjEkLfVl31-5foGo7Lsz_WqPbM40gvaNNv_" className="w-full h-full object-cover"/>
+                             </div>
+                         </div>
+                         <span className="text-sm font-semibold">criador.pro</span>
+                     </div>
+                     <span className="material-symbols-outlined text-xl">more_horiz</span>
                  </div>
                  
-                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/30 rounded-full z-50"></div>
+                 {/* Main Content Area */}
+                 <div className={`w-full h-full ${getContainerStyle()} relative pt-20 flex flex-col`}>
+                      {/* Floating Toolbar only active if focused */}
+                      {isFocused && <FloatingFormatToolbar brandColor={brandColor || '#6366f1'} />}
+                      
+                      {renderBackgroundDecor()}
+                      <div className="flex-1 relative flex flex-col">
+                          {renderContent()}
+                      </div>
+
+                      {/* Instagram Actions Overlay */}
+                      <div className="absolute bottom-24 right-4 flex flex-col gap-6 z-40 pointer-events-none">
+                          <div className="flex flex-col items-center gap-1">
+                              <span className="material-symbols-outlined text-3xl text-white drop-shadow-md">favorite</span>
+                              <span className="text-xs font-bold text-white drop-shadow-md">4.5k</span>
+                          </div>
+                          <div className="flex flex-col items-center gap-1">
+                              <span className="material-symbols-outlined text-3xl text-white drop-shadow-md">chat_bubble</span>
+                              <span className="text-xs font-bold text-white drop-shadow-md">128</span>
+                          </div>
+                           <div className="flex flex-col items-center gap-1">
+                              <span className="material-symbols-outlined text-3xl text-white drop-shadow-md transform -rotate-45 -mt-1">send</span>
+                          </div>
+                           <div className="flex flex-col items-center gap-1">
+                              <span className="material-symbols-outlined text-3xl text-white drop-shadow-md">bookmark</span>
+                          </div>
+                      </div>
+
+                      {/* Caption Area Simulation */}
+                      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black via-black/80 to-transparent p-4 flex flex-col justify-end z-40 pointer-events-none">
+                            <p className="text-xs text-white line-clamp-1"><span className="font-bold">criador.pro</span> {slide.title}</p>
+                      </div>
+                 </div>
+                 
+                 {/* Home Indicator */}
+                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/40 rounded-full z-50 pointer-events-none"></div>
              </div>
           </div>
       )
   }
 
+  // --- DESKTOP CARD VIEW ---
   return (
-    <div 
-        id={id}
-        className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:z-10 ${getContainerStyle()}`}
-        style={isNeonStyle(style) && !slide.generatedBackground ? neonShadow : {}}
-    >
-      {renderBackgroundDecor()}
-      {renderContent()}
+    <>
+        {/* Floating toolbar is rendered globally but controlled by selection events */}
+        {isFocused && <FloatingFormatToolbar brandColor={brandColor || '#6366f1'} />}
 
-      {/* FOOTER INFO - HIDDEN DURING EXPORT (using data-html2canvas-ignore) */}
-      <div 
-        data-html2canvas-ignore="true"
-        className={`absolute bottom-0 left-0 right-0 p-3 z-30 transform translate-y-[85%] group-hover:translate-y-0 transition-transform duration-300 border-t bg-black/90 backdrop-blur-xl border-white/10`}
-      >
-        <div className="flex flex-col gap-1">
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${hasPersonRef ? 'bg-amber-500/20 text-amber-400' : 'bg-primary/20 text-primary'}`}>
-                        {slide.layoutSuggestion.split(' ')[0]} 
-                    </span>
-                    <span className="text-[9px] text-slate-400 font-bold truncate max-w-[100px]">{style}</span>
+        <div 
+            id={id}
+            className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:z-10 ${getContainerStyle()}`}
+            style={isNeonStyle(style) && !slide.generatedBackground ? neonShadow : {}}
+        >
+        {renderBackgroundDecor()}
+        {renderContent()}
+
+        {/* FOOTER INFO - HIDDEN DURING EXPORT */}
+        <div 
+            data-html2canvas-ignore="true"
+            className={`absolute bottom-0 left-0 right-0 p-3 z-30 transform translate-y-[85%] group-hover:translate-y-0 transition-transform duration-300 border-t bg-black/90 backdrop-blur-xl border-white/10`}
+        >
+            <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${hasPersonRef ? 'bg-amber-500/20 text-amber-400' : 'bg-primary/20 text-primary'}`}>
+                            {slide.layoutSuggestion.split(' ')[0]} 
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-bold truncate max-w-[100px]">{style}</span>
+                    </div>
+                    <span className="material-symbols-outlined text-[14px] opacity-50 group-hover:opacity-0 transition-opacity text-white">expand_less</span>
                 </div>
-                <span className="material-symbols-outlined text-[14px] opacity-50 group-hover:opacity-0 transition-opacity text-white">expand_less</span>
+                <p className="text-[9px] font-mono leading-tight text-slate-400 mt-2 line-clamp-3 hover:line-clamp-none transition-all cursor-text select-text">
+                    {slide.imagePrompt}
+                </p>
             </div>
-            <p className="text-[9px] font-mono leading-tight text-slate-400 mt-2 line-clamp-3 hover:line-clamp-none transition-all cursor-text select-text">
-                {slide.imagePrompt}
-            </p>
         </div>
-      </div>
-      
-      {/* CONTROLS - HIDDEN DURING EXPORT */}
-      <div 
-        data-html2canvas-ignore="true"
-        className="absolute top-3 right-3 z-40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2"
-      >
-           <button 
-                onClick={(e) => { e.stopPropagation(); cycleLayout(); }}
-                className="bg-black/60 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
-                title="Trocar Layout"
+        
+        {/* CONTROLS - HIDDEN DURING EXPORT */}
+        <div 
+            data-html2canvas-ignore="true"
+            className="absolute top-3 right-3 z-40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2"
+        >
+            <button 
+                    onClick={(e) => { e.stopPropagation(); cycleLayout(); }}
+                    className="bg-black/60 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
+                    title="Trocar Layout"
+                >
+                <span className="material-symbols-outlined text-[18px]">shuffle</span>
+            </button>
+            
+            <button 
+                    onClick={(e) => { e.stopPropagation(); setIsInverted(!isInverted); }}
+                    className="bg-black/60 hover:bg-white hover:text-black text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
+                    title="Inverter Cores"
             >
-               <span className="material-symbols-outlined text-[18px]">shuffle</span>
-           </button>
-           
-           <button 
-                onClick={(e) => { e.stopPropagation(); setIsInverted(!isInverted); }}
-                className="bg-black/60 hover:bg-white hover:text-black text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
-                title="Inverter Cores"
-           >
-               <span className="material-symbols-outlined text-[18px]">contrast</span>
-           </button>
-      </div>
+                <span className="material-symbols-outlined text-[18px]">contrast</span>
+            </button>
+        </div>
 
-    </div>
+        </div>
+    </>
   );
 };
 

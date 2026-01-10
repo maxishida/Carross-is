@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { GenerationConfig, ToneType, VisualStyleType, CharacterStyleType, CarouselGoal, StyleCategory } from '../types';
 
@@ -8,7 +9,6 @@ interface ConfigPanelProps {
   hideSlideCount?: boolean; 
 }
 
-// Data map for UI categories
 const STYLES_BY_CATEGORY: Record<StyleCategory, string[]> = {
     [StyleCategory.COMMERCIAL]: ["Neon Tech", "Cyber Promo", "Premium Black & Gold", "Oferta Explosiva", "Flash Sale Dinâmica", "Desconto Minimalista", "Vitrine 3D", "Produto Flutuante", "Tech Clean", "Marketplace Moderno"],
     [StyleCategory.BRANDING]: ["Branding Minimal", "Luxo Sofisticado", "Corporativo Moderno", "Visual Institucional", "Startup Tech", "Clean Business", "Profissional Elegante", "Branding Futurista", "Marca Premium", "Estilo Editorial"],
@@ -17,13 +17,11 @@ const STYLES_BY_CATEGORY: Record<StyleCategory, string[]> = {
     [StyleCategory.TRENDS]: ["Glassmorphism", "Neumorphism", "Dark UI", "Soft Gradient", "Bold Typography", "Clean Tech", "Visual Dinâmico", "High Contrast", "Estética Minimal", "Visual Premium"],
     [StyleCategory.NICHE]: ["Eletrônicos Premium", "Moda Urbana", "Beleza Estética", "Fitness Moderno", "Imobiliário Luxo", "Restaurante Gourmet"],
     [StyleCategory.EMOTIONAL]: ["Storytelling Visual", "Inspiração", "Humanizado", "Autoridade"],
-    // Fallbacks or specialized lists
     [StyleCategory.COMMUNICATION]: ["Oferta Direta", "Comunicação Premium", "Copy Persuasiva"],
     [StyleCategory.LAYOUT]: ["Grid 3x3", "Post Único Impactante", "Design Vertical"],
     [StyleCategory.ADS]: ["Criativo de Conversão", "Anúncio de Produto", "Promoção Relâmpago"]
 };
 
-// Layout Suggestions Data
 const LAYOUT_SUGGESTIONS: Record<CarouselGoal, Array<{ label: string, slides: number, icon: string, description: string }>> = {
     [CarouselGoal.GROWTH]: [
         { label: 'Post Único Impactante', slides: 1, icon: 'crop_square', description: 'Imagem única com alta viralidade' },
@@ -52,10 +50,29 @@ const LAYOUT_SUGGESTIONS: Record<CarouselGoal, Array<{ label: string, slides: nu
     ]
 };
 
+// PRESET COLORS
+const BRAND_PRESETS = [
+    { color: '#6366f1', name: 'Indigo' },
+    { color: '#a855f7', name: 'Purple' },
+    { color: '#ec4899', name: 'Pink' },
+    { color: '#f43f5e', name: 'Rose' },
+    { color: '#ef4444', name: 'Red' },
+    { color: '#f97316', name: 'Orange' },
+    { color: '#eab308', name: 'Yellow' },
+    { color: '#84cc16', name: 'Lime' },
+    { color: '#22c55e', name: 'Green' },
+    { color: '#10b981', name: 'Emerald' },
+    { color: '#14b8a6', name: 'Teal' },
+    { color: '#06b6d4', name: 'Cyan' },
+    { color: '#0ea5e9', name: 'Sky' },
+    { color: '#3b82f6', name: 'Blue' },
+    { color: '#64748b', name: 'Slate' },
+    { color: '#ffffff', name: 'White' },
+];
+
 const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, hideSlideCount }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Initialize config with default category if missing
   useEffect(() => {
       if (!config.styleCategory) {
           setConfig(prev => ({ ...prev, styleCategory: StyleCategory.COMMERCIAL, style: STYLES_BY_CATEGORY[StyleCategory.COMMERCIAL][0] }));
@@ -71,10 +88,6 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       setConfig(prev => ({ ...prev, goal: newGoal }));
   };
   
-  const handleBrandColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setConfig(prev => ({ ...prev, brandColor: e.target.value }));
-  };
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -186,25 +199,40 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       
       <div className="h-px bg-white/5 my-1"></div>
 
-      {/* Brand Color */}
-      <div className="flex flex-col gap-2">
-         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Cor da Marca (Identidade)
-         </label>
-         <div className="flex items-center gap-3 p-3 bg-[#0f172a] rounded-xl border border-white/5">
-             <div className="relative size-8 rounded-full overflow-hidden border border-white/20 shadow-lg shrink-0">
-                 <input 
-                    type="color" 
-                    value={config.brandColor || '#6366f1'}
-                    onChange={handleBrandColorChange}
-                    className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 p-0 m-0 cursor-pointer border-none"
-                    disabled={disabled}
+      {/* Brand Color Presets */}
+      <div className="flex flex-col gap-3">
+         <div className="flex justify-between items-center">
+             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Cor da Marca
+             </label>
+             <div className="flex items-center gap-2">
+                 <div className="size-3 rounded-full" style={{backgroundColor: config.brandColor || '#6366f1'}}></div>
+                 <span className="text-[10px] font-mono text-slate-500">{config.brandColor || '#6366f1'}</span>
+             </div>
+         </div>
+         
+         <div className="grid grid-cols-8 gap-2">
+             {BRAND_PRESETS.map((preset) => (
+                 <button
+                    key={preset.color}
+                    onClick={() => setConfig(prev => ({...prev, brandColor: preset.color}))}
+                    className={`size-6 rounded-full border transition-all ${config.brandColor === preset.color ? 'border-white scale-125 shadow-neon-glow' : 'border-transparent hover:scale-110'}`}
+                    style={{backgroundColor: preset.color}}
+                    title={preset.name}
                  />
-             </div>
-             <div className="flex flex-col">
-                 <span className="text-xs text-white font-mono">{config.brandColor || '#6366f1'}</span>
-                 <span className="text-[9px] text-slate-500">Cor Principal</span>
-             </div>
+             ))}
+         </div>
+         
+         {/* Custom Picker Fallback */}
+         <div className="relative w-full h-8 bg-white/5 rounded-lg border border-white/10 flex items-center px-3 cursor-pointer hover:bg-white/10">
+             <span className="text-[10px] text-slate-400 flex-1">Customizar Hex...</span>
+             <span className="material-symbols-outlined text-[14px] text-slate-500">palette</span>
+             <input 
+                type="color" 
+                value={config.brandColor || '#6366f1'}
+                onChange={(e) => setConfig(prev => ({...prev, brandColor: e.target.value}))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+             />
          </div>
       </div>
 
