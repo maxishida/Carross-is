@@ -370,10 +370,15 @@ export const generateCarousel = async (input: string, config: GenerationConfig):
     
     INPUT: "${input}"
     TOM DE VOZ: ${config.tone}
+    QUANTIDADE DE SLIDES: ${config.slideCount}
     
     ---------------------------------------------------
-    1. COPYWRITING (Objetivo: ${config.goal})
+    1. ESTRUTURA E COPYWRITING
     ---------------------------------------------------
+    OBJETIVO: ${config.goal}
+    ${config.layoutMode ? `FORMATO DE LAYOUT SUGERIDO: "${config.layoutMode}". Adapte o conteúdo para este formato.` : ''}
+    
+    ESTRATÉGIA DETALHADA:
     ${marketingStrategy}
     
     ---------------------------------------------------

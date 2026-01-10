@@ -41,8 +41,8 @@ export interface CreativeData {
 export interface GenerationConfig {
   slideCount: number;
   tone: ToneType;
-  styleCategory: StyleCategory; // NOVO: Categoria macro
-  style: string; // Alterado para string para aceitar a lista dinâmica
+  styleCategory: StyleCategory; 
+  style: string; 
   customStylePrompt?: string; 
   brandColor?: string; 
   goal: CarouselGoal; 
@@ -52,6 +52,7 @@ export interface GenerationConfig {
   referenceImage?: string;
   characterStyle?: CharacterStyleType;
   aspectRatio?: '1:1' | '9:16' | '16:9';
+  layoutMode?: string; 
 }
 
 // --- MOTION / VEO TYPES ---
@@ -111,7 +112,6 @@ export enum ToneType {
   CREATIVE = 'Criativo'
 }
 
-// Novas Categorias para organizar a lista gigante
 export enum StyleCategory {
   COMMERCIAL = 'Comercial & E-commerce',
   BRANDING = 'Branding & Negócios',
@@ -125,7 +125,6 @@ export enum StyleCategory {
   EMOTIONAL = 'Emocional & Conexão'
 }
 
-// Mapeamento dos estilos antigos para compatibilidade, se necessário, mas focaremos nas strings dinâmicas
 export enum VisualStyleType {
   CUSTOM = 'Personalizado (Prompt)', 
   MINIMAL_DARK = 'Minimalista Dark',
@@ -159,4 +158,11 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: Date;
+}
+
+// NEW: Toast Notification Type
+export interface ToastNotification {
+    id: string;
+    type: 'success' | 'error' | 'info' | 'loading';
+    message: string;
 }

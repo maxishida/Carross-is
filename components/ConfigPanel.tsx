@@ -23,6 +23,35 @@ const STYLES_BY_CATEGORY: Record<StyleCategory, string[]> = {
     [StyleCategory.ADS]: ["Criativo de Conversão", "Anúncio de Produto", "Promoção Relâmpago"]
 };
 
+// Layout Suggestions Data
+const LAYOUT_SUGGESTIONS: Record<CarouselGoal, Array<{ label: string, slides: number, icon: string, description: string }>> = {
+    [CarouselGoal.GROWTH]: [
+        { label: 'Post Único Impactante', slides: 1, icon: 'crop_square', description: 'Imagem única com alta viralidade' },
+        { label: 'Carrossel Curto', slides: 4, icon: 'view_week', description: 'Rápido de consumir (3-4 slides)' },
+        { label: 'Twitter Thread Style', slides: 7, icon: 'lists', description: 'Texto focado em narrativa' }
+    ],
+    [CarouselGoal.SALES]: [
+        { label: 'Método AIDA', slides: 4, icon: 'ads_click', description: 'Atenção, Interesse, Desejo, Ação' },
+        { label: 'Vitrine de Produto', slides: 3, icon: 'storefront', description: 'Destaque visual do produto' },
+        { label: 'Quebra de Objeções', slides: 6, icon: 'verified', description: 'Prova social e garantia' }
+    ],
+    [CarouselGoal.ENGAGEMENT]: [
+        { label: 'Lista/Checklist', slides: 5, icon: 'checklist', description: 'Salvável e prático' },
+        { label: 'Quiz Interativo', slides: 4, icon: 'quiz', description: 'Pergunta e Resposta no final' },
+        { label: 'Meme/Relatável', slides: 3, icon: 'mood', description: 'Conexão emocional rápida' }
+    ],
+    [CarouselGoal.AUTHORITY]: [
+        { label: 'Deep Dive (Aula)', slides: 8, icon: 'school', description: 'Conteúdo denso e educativo' },
+        { label: 'Passo a Passo', slides: 6, icon: 'steps', description: 'Tutorial "Como fazer"' },
+        { label: 'Estudo de Caso', slides: 5, icon: 'analytics', description: 'Análise de resultados' }
+    ],
+    [CarouselGoal.VIRAL]: [
+        { label: 'Opinião Polêmica', slides: 3, icon: 'campaign', description: 'Gera debate nos comentários' },
+        { label: 'Antes x Depois', slides: 2, icon: 'compare', description: 'Transformação visual' },
+        { label: 'Grid 3x3 (Conceito)', slides: 9, icon: 'grid_view', description: 'Mosaico visual impactante' }
+    ]
+};
+
 const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, hideSlideCount }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -38,7 +67,8 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
   };
   
   const handleGoalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setConfig(prev => ({ ...prev, goal: e.target.value as CarouselGoal }));
+      const newGoal = e.target.value as CarouselGoal;
+      setConfig(prev => ({ ...prev, goal: newGoal }));
   };
   
   const handleBrandColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,7 +97,16 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const applyLayout = (layout: { label: string, slides: number }) => {
+      setConfig(prev => ({
+          ...prev,
+          slideCount: layout.slides,
+          layoutMode: layout.label
+      }));
+  };
+
   const currentStyles = STYLES_BY_CATEGORY[config.styleCategory || StyleCategory.COMMERCIAL] || [];
+  const suggestedLayouts = LAYOUT_SUGGESTIONS[config.goal || CarouselGoal.AUTHORITY] || [];
 
   return (
     <div className="bg-[#050511] lg:rounded-2xl border border-white/10 flex flex-col gap-6 p-6 h-fit lg:sticky top-6">
@@ -85,7 +124,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
          </label>
          <div className="relative">
             <select 
-                className="w-full p-3 pl-10 text-xs text-white bg-[#0f172a] border border-white/10 rounded-xl focus:ring-primary focus:border-primary appearance-none font-medium"
+                className="w-full p-3 pl-10 text-xs text-white bg-[#0f172a] border border-white/10 rounded-xl focus:ring-primary focus:border-primary appearance-none font-medium transition-colors"
                 value={config.goal || CarouselGoal.AUTHORITY}
                 onChange={handleGoalChange}
                 disabled={disabled}
@@ -98,7 +137,55 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
             <span className="absolute right-3 top-3 pointer-events-none material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
          </div>
       </div>
+
+      {/* DYNAMIC LAYOUT SUGGESTIONS */}
+      <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex justify-between">
+              <span>Sugestão de Layout</span>
+              {!hideSlideCount && <span className="text-primary">{config.slideCount} Slides</span>}
+          </label>
+          <div className="grid grid-cols-1 gap-2">
+              {suggestedLayouts.map((layout) => (
+                  <button
+                      key={layout.label}
+                      onClick={() => applyLayout(layout)}
+                      disabled={disabled}
+                      className={`
+                          group relative p-3 rounded-xl border text-left transition-all overflow-hidden
+                          ${config.layoutMode === layout.label 
+                              ? 'bg-primary/10 border-primary shadow-neon-primary' 
+                              : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}
+                      `}
+                  >
+                      <div className="flex items-center justify-between relative z-10">
+                          <div className="flex items-center gap-3">
+                              <div className={`p-1.5 rounded-lg ${config.layoutMode === layout.label ? 'bg-primary text-white' : 'bg-black/30 text-slate-400 group-hover:text-white'}`}>
+                                  <span className="material-symbols-outlined text-[18px]">{layout.icon}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                  <span className={`text-xs font-bold ${config.layoutMode === layout.label ? 'text-white' : 'text-slate-300'}`}>
+                                      {layout.label}
+                                  </span>
+                                  <span className="text-[9px] text-slate-500 font-medium">
+                                      {layout.description}
+                                  </span>
+                              </div>
+                          </div>
+                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${config.layoutMode === layout.label ? 'bg-black/30 text-white' : 'bg-black/20 text-slate-500'}`}>
+                              {layout.slides}x
+                          </span>
+                      </div>
+                      {/* Active Indicator Bar */}
+                      {config.layoutMode === layout.label && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+                      )}
+                  </button>
+              ))}
+          </div>
+      </div>
       
+      <div className="h-px bg-white/5 my-1"></div>
+
       {/* Brand Color */}
       <div className="flex flex-col gap-2">
          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
