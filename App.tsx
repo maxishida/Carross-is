@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
@@ -6,6 +7,7 @@ import GeneratorView from './components/GeneratorView';
 import CreativeGeneratorView from './components/CreativeGeneratorView';
 import MotionGeneratorView from './components/MotionGeneratorView';
 import ToastContainer from './components/ToastContainer';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ToastNotification } from './types';
 
 function App() {
@@ -36,18 +38,32 @@ function App() {
       switch(currentView) {
           case 'create':
               return (
-                  <GeneratorView 
-                    onBack={() => setCurrentView('dashboard')} 
-                    // In a real app, you'd pass addToast here via Context or Props
-                  />
+                  <ErrorBoundary>
+                    <GeneratorView 
+                        onBack={() => setCurrentView('dashboard')} 
+                        // In a real app, you'd pass addToast here via Context or Props
+                    />
+                  </ErrorBoundary>
               );
           case 'creative':
-              return <CreativeGeneratorView onBack={() => setCurrentView('dashboard')} />;
+              return (
+                  <ErrorBoundary>
+                    <CreativeGeneratorView onBack={() => setCurrentView('dashboard')} />
+                  </ErrorBoundary>
+              );
           case 'motion':
-              return <MotionGeneratorView onBack={() => setCurrentView('dashboard')} />;
+              return (
+                  <ErrorBoundary>
+                    <MotionGeneratorView onBack={() => setCurrentView('dashboard')} />
+                  </ErrorBoundary>
+              );
           case 'dashboard':
           default:
-              return <DashboardView onCreateClick={() => setCurrentView('create')} />;
+              return (
+                  <ErrorBoundary>
+                    <DashboardView onCreateClick={() => setCurrentView('create')} />
+                  </ErrorBoundary>
+              );
       }
   }
 
@@ -75,7 +91,9 @@ function App() {
 
         {/* Scrollable Page Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 grid-bg">
-            {renderContent()}
+            <ErrorBoundary>
+                {renderContent()}
+            </ErrorBoundary>
         </div>
       </main>
     </div>

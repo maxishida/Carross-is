@@ -23,6 +23,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
   const [isInverted, setIsInverted] = useState(false); 
   const [isFocused, setIsFocused] = useState(false);
   const [isRewriting, setIsRewriting] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   // Sync props to local state if external update happens
   useEffect(() => {
@@ -86,7 +87,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
   };
 
   const getContainerStyle = () => {
-    if (slide.generatedBackground) {
+    if (slide.generatedBackground && !imgError) {
         return "bg-slate-900 border-white/10 text-white font-display";
     }
     if (isInverted) return "bg-white text-black border-gray-200 font-sans";
@@ -96,7 +97,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
   };
 
   const getTextColors = () => {
-       if (slide.generatedBackground) return { title: 'text-white drop-shadow-md', body: 'text-white drop-shadow-md', number: 'text-white/50' };
+       if (slide.generatedBackground && !imgError) return { title: 'text-white drop-shadow-md', body: 'text-white drop-shadow-md', number: 'text-white/50' };
        if (isInverted) return { title: 'text-black', body: 'text-slate-800', number: 'text-slate-900/20' };
        if (isLightStyle(style)) return { title: 'text-slate-900', body: 'text-slate-600', number: 'text-slate-300' };
        return { title: 'text-white', body: 'text-gray-300', number: 'text-white/20' };
@@ -105,13 +106,19 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
   const colors = getTextColors();
   const brandStyle = brandColor ? { color: brandColor } : {};
   const brandBgStyle = brandColor ? { backgroundColor: brandColor } : {};
-  const neonShadow = (brandColor && isNeonStyle(style) && !slide.generatedBackground) ? { boxShadow: `0 0 20px ${brandColor}40` } : {};
+  const neonShadow = (brandColor && isNeonStyle(style) && (!slide.generatedBackground || imgError)) ? { boxShadow: `0 0 20px ${brandColor}40` } : {};
 
   const renderBackgroundDecor = () => {
-    if (slide.generatedBackground) {
+    if (slide.generatedBackground && !imgError) {
         return (
             <>
-                <img src={slide.generatedBackground} alt="AI Background" className="absolute inset-0 w-full h-full object-cover z-0 animate-in fade-in duration-700" crossOrigin="anonymous" />
+                <img 
+                    src={slide.generatedBackground} 
+                    alt="AI Background" 
+                    className="absolute inset-0 w-full h-full object-cover z-0 animate-in fade-in duration-700" 
+                    crossOrigin="anonymous"
+                    onError={() => setImgError(true)} 
+                />
                 <div className="absolute inset-0 bg-black/40 z-0"></div> 
             </>
         );
@@ -141,7 +148,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                 <div className="flex flex-col h-full w-full relative z-10">
                     <div className="h-[55%] w-full relative bg-slate-800/30 overflow-hidden backdrop-blur-sm border-b border-white/10">
                         {renderGhostImage('inset-0')}
-                        {!referenceImage && !slide.generatedBackground && (
+                        {(!referenceImage && (!slide.generatedBackground || imgError)) && (
                             <div className="absolute inset-0 flex items-center justify-center opacity-30">
                                 <span className="material-symbols-outlined text-6xl" style={brandStyle}>image</span>
                             </div>
@@ -177,7 +184,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
             return (
                 <div className="h-full w-full relative flex flex-col justify-end p-8 overflow-hidden z-10">
                     {renderGhostImage('inset-0')}
-                    {!referenceImage && !slide.generatedBackground && (
+                    {(!referenceImage && (!slide.generatedBackground || imgError)) && (
                         <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black opacity-50"></div>
                     )}
                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-0"></div>
@@ -315,7 +322,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
         <div 
             id={id}
             className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:z-10 ${getContainerStyle()}`}
-            style={isNeonStyle(style) && !slide.generatedBackground ? neonShadow : {}}
+            style={isNeonStyle(style) && (!slide.generatedBackground || imgError) ? neonShadow : {}}
         >
         {renderBackgroundDecor()}
         {renderContent()}
@@ -338,6 +345,9 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                 <p className="text-[9px] font-mono leading-tight text-slate-400 mt-2 line-clamp-3 hover:line-clamp-none transition-all cursor-text select-text">
                     {slide.imagePrompt}
                 </p>
+                {imgError && (
+                    <p className="text-[9px] text-red-400 font-bold">Erro: Imagem corrompida ou bloqueada.</p>
+                )}
             </div>
         </div>
         

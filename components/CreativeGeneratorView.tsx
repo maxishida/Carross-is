@@ -1,5 +1,6 @@
+
 import React, { useState, useRef } from 'react';
-import { CreativeData, GenerationConfig, ToneType, VisualStyleType } from '../types';
+import { CreativeData, GenerationConfig, ToneType, VisualStyleType, StyleCategory, CarouselGoal } from '../types';
 import { generateCreativeVariations, generateSocialImage, editSocialImage } from '../services/geminiService';
 import ConfigPanel from './ConfigPanel';
 import * as htmlToImageModule from 'html-to-image';
@@ -41,7 +42,9 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
         inputType: 'topic',
         includePeople: false,
         aspectRatio: '1:1',
-        customTheme: ''
+        customTheme: '',
+        styleCategory: StyleCategory.CREATIVE,
+        goal: CarouselGoal.ENGAGEMENT
     });
 
     const handleGenerate = async () => {

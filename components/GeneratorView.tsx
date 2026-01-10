@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal, Slide } from '../types';
+import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal, Slide, StyleCategory } from '../types';
 import { generateCarousel, refineCarousel, generateSocialImage, editSocialImage } from '../services/geminiService';
 import SlideCard from './SlideCard';
 import ConfigPanel from './ConfigPanel';
@@ -67,7 +67,8 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         goal: CarouselGoal.AUTHORITY,
         inputType: 'topic',
         includePeople: false,
-        customTheme: ''
+        customTheme: '',
+        styleCategory: StyleCategory.COMMERCIAL
     });
 
     // --- AUTO SAVE & RECOVERY ---
@@ -144,7 +145,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
             result.slides.forEach(async (slide) => {
                 setGeneratingImages(prev => ({ ...prev, [slide.slideNumber]: true }));
                 
-                const imageBase64 = await generateSocialImage(slide.imagePrompt, config.aspectRatio || '4:5'); // Default portrait for slides usually
+                const imageBase64 = await generateSocialImage(slide.imagePrompt, config.aspectRatio || '1:1'); // Default portrait for slides usually
                 
                 if (imageBase64) {
                     setData(prevData => {
