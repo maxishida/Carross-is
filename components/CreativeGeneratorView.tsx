@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { CreativeData, GenerationConfig, ToneType, VisualStyleType } from '../types';
-import { generateCreativeVariations } from '../services/geminiService';
+import { generateCreativeVariations, generateSocialImage } from '../services/geminiService';
 import ConfigPanel from './ConfigPanel';
+import * as htmlToImageModule from 'html-to-image';
+import JSZip from 'jszip';
 
 interface CreativeGeneratorViewProps {
     onBack: () => void;
@@ -10,13 +12,18 @@ interface CreativeGeneratorViewProps {
 const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack }) => {
     const [topic, setTopic] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
     const [data, setData] = useState<CreativeData | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [generatingImages, setGeneratingImages] = useState<Record<number, boolean>>({});
+    
+    // State for Image Preview Modal
+    const [previewData, setPreviewData] = useState<{ url: string; title: string } | null>(null);
 
     const [config, setConfig] = useState<GenerationConfig>({
-        slideCount: 1, // Irrelevant for creatives but needed for type
+        slideCount: 1, 
         tone: ToneType.PERSUASIVE,
-        style: VisualStyleType.GRADIENT_TECH,
+        style: VisualStyleType.THREE_D_CARTOON, 
         inputType: 'topic',
         includePeople: false,
         aspectRatio: '1:1',
@@ -29,15 +36,98 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
         setIsLoading(true);
         setError(null);
         setData(null);
+        setGeneratingImages({});
 
         try {
+            // STEP 1: Generate Text Concept & Visual Prompts (Gemini 3 Flash)
             const result = await generateCreativeVariations(topic, config);
+            if (!result) throw new Error("Falha ao gerar variações de texto.");
+            
             setData(result);
+            setIsLoading(false); // Stop main loading to show text cards
+
+            // STEP 2: Trigger Image Generation for each card (Gemini 2.5 Flash Image)
+            // We do this in parallel but update state individually
+            result.variations.forEach(async (variation) => {
+                setGeneratingImages(prev => ({ ...prev, [variation.id]: true }));
+                
+                const imageBase64 = await generateSocialImage(variation.visualPrompt, config.aspectRatio || '1:1');
+                
+                if (imageBase64) {
+                    setData(prevData => {
+                        if (!prevData) return null;
+                        return {
+                            ...prevData,
+                            variations: prevData.variations.map(v => 
+                                v.id === variation.id ? { ...v, generatedImage: imageBase64 } : v
+                            )
+                        };
+                    });
+                }
+                
+                setGeneratingImages(prev => ({ ...prev, [variation.id]: false }));
+            });
+
         } catch (err) {
             setError('Erro ao gerar criativos. Tente novamente.');
             console.error(err);
-        } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleDownloadAll = async () => {
+        if (!data) return;
+        setIsDownloading(true);
+
+        try {
+            const zip = new JSZip();
+            const elements = document.querySelectorAll('.creative-card-export');
+            
+            if (elements.length === 0) {
+                throw new Error("Nenhum criativo encontrado para exportar.");
+            }
+
+            // Fix for html-to-image ESM/CJS export mismatch on some CDNs
+            const toPng = htmlToImageModule.toPng || (htmlToImageModule as any).default?.toPng;
+            
+            if (!toPng) {
+                 throw new Error("Failed to load image generator library.");
+            }
+
+            const promises = Array.from(elements).map(async (element, index) => {
+                // Using skipFonts: true to prevent "Failed to read cssRules" error from cross-origin stylesheets (Google Fonts/Tailwind CDN)
+                // Removing cacheBust to avoid CORS issues with certain resources
+                const options: any = { 
+                    pixelRatio: 2,
+                    skipFonts: true,
+                    filter: (node: any) => {
+                        // Exclude any external link tags that might be inside the card (though rare)
+                        return (node.tagName !== 'LINK');
+                    }
+                };
+
+                const dataUrl = await toPng(element as HTMLElement, options);
+                const base64Data = dataUrl.split(',')[1];
+                zip.file(`criativo_${index + 1}_${data.topic.substring(0, 10)}.png`, base64Data, { base64: true });
+            });
+
+            await Promise.all(promises);
+            const content = await zip.generateAsync({ type: 'blob' });
+            
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Pack_Criativos_${data.topic.replace(/\s/g, '_')}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+        } catch (err) {
+            console.error("Erro ao baixar criativos:", err);
+            setError("Falha ao gerar o arquivo ZIP. Tente novamente.");
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -50,67 +140,84 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
         }
     }
 
+    // --- AUTO DESIGN ENGINE: FONTS ---
+    const getFontClass = (fontType: string) => {
+        switch(fontType) {
+            case 'serif': return 'font-serif';
+            case 'mono': return 'font-mono';
+            case 'display': return 'font-display';
+            default: return 'font-sans';
+        }
+    };
+
     return (
-        <div className="max-w-7xl mx-auto flex flex-col gap-6 fade-in h-full relative">
+        <div className="max-w-[1600px] mx-auto flex flex-col gap-6 fade-in h-full relative p-4">
+            
+            {/* --- PREVIEW MODAL --- */}
+            {previewData && (
+                <div 
+                    className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setPreviewData(null)}
+                >
+                    <div 
+                        className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Close Button */}
+                        <button 
+                            onClick={() => setPreviewData(null)}
+                            className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-2xl">close</span>
+                        </button>
+
+                        <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black">
+                            <img 
+                                src={previewData.url} 
+                                alt={previewData.title}
+                                className="max-h-[80vh] w-auto object-contain"
+                            />
+                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
+                                <h3 className="text-white font-bold text-lg text-center font-display">{previewData.title}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header Area */}
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-surface-dark transition-colors">
-                        <span className="material-symbols-outlined dark:text-white">arrow_back</span>
+                    <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+                        <span className="material-symbols-outlined text-white">arrow_back</span>
                     </button>
                     <div className="flex flex-col">
-                        <h1 className="text-2xl font-bold dark:text-white font-display">Gerador de Criativos</h1>
-                        <span className="text-xs text-slate-500">6 Variações de Design Único</span>
+                        <h1 className="text-2xl font-bold text-white font-display">Gerador de Criativos</h1>
+                        <span className="text-xs text-slate-400">Motor: Auto Design (Gemini 3 Flash) + Image Gen (Nano Banana)</span>
                     </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start h-full">
-                {/* Configuration Sidebar - Reuse ConfigPanel but maybe simplify or just use it as is */}
-                <div className="lg:col-span-4 order-2 lg:order-1">
-                    <ConfigPanel config={config} setConfig={setConfig} disabled={isLoading} />
-                    
-                    {/* Aspect Ratio Selector (Custom for this view) */}
-                    <div className="mt-6 bg-white dark:bg-white/5 p-6 rounded-2xl border border-gray-200 dark:border-white/5">
-                        <label className="font-bold text-sm dark:text-white mb-4 block">Formato do Criativo</label>
-                        <div className="grid grid-cols-3 gap-3">
-                            <button 
-                                onClick={() => setConfig(prev => ({...prev, aspectRatio: '1:1'}))}
-                                className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${config.aspectRatio === '1:1' ? 'bg-primary/10 border-primary text-primary' : 'border-slate-200 dark:border-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                            >
-                                <div className="size-6 border-2 border-current rounded-sm"></div>
-                                <span className="text-xs font-bold">Post (1:1)</span>
-                            </button>
-                            <button 
-                                onClick={() => setConfig(prev => ({...prev, aspectRatio: '9:16'}))}
-                                className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${config.aspectRatio === '9:16' ? 'bg-primary/10 border-primary text-primary' : 'border-slate-200 dark:border-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                            >
-                                <div className="w-3.5 h-6 border-2 border-current rounded-sm"></div>
-                                <span className="text-xs font-bold">Story (9:16)</span>
-                            </button>
-                            <button 
-                                onClick={() => setConfig(prev => ({...prev, aspectRatio: '16:9'}))}
-                                className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${config.aspectRatio === '16:9' ? 'bg-primary/10 border-primary text-primary' : 'border-slate-200 dark:border-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                            >
-                                <div className="w-6 h-3.5 border-2 border-current rounded-sm"></div>
-                                <span className="text-xs font-bold">Capa (16:9)</span>
-                            </button>
-                        </div>
-                    </div>
+                {/* Configuration Sidebar */}
+                <div className="lg:col-span-3 order-2 lg:order-1">
+                    <ConfigPanel config={config} setConfig={setConfig} disabled={isLoading} hideSlideCount={true} />
                 </div>
 
                 {/* Main Content */}
-                <div className="lg:col-span-8 order-1 lg:order-2 flex flex-col gap-6 pb-24">
-                    {/* Input Area */}
-                    <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4 bg-white dark:bg-surface-dark border-slate-200 dark:border-slate-800 shadow-xl shadow-primary/5">
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-2">
+                <div className="lg:col-span-9 order-1 lg:order-2 flex flex-col gap-8 pb-24">
+                    {/* Input & Filters Area */}
+                    <div className="bg-[#0f172a]/80 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-xl">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2 mb-4">
                             <span className="material-symbols-outlined text-purple-500">photo_library</span>
                             O que você quer criar?
                         </label>
-                        <div className="relative">
+                        
+                        {/* Search Input with Embedded Button */}
+                        <div className="relative mb-6">
                             <input 
-                                className="w-full h-14 pl-4 pr-36 rounded-xl bg-slate-100 dark:bg-[#161a2c] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-primary focus:border-primary text-lg" 
-                                placeholder="Ex: Anúncio de Tênis de Corrida, Capa de Vídeo sobre IA..." 
+                                className="w-full h-14 pl-5 pr-40 rounded-xl bg-[#020617] border border-white/10 text-white placeholder:text-slate-600 focus:ring-primary focus:border-primary text-base font-medium" 
+                                placeholder="Ex: post corrida de ia 2026" 
                                 type="text"
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
@@ -120,7 +227,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                             <button 
                                 onClick={handleGenerate}
                                 disabled={isLoading || !topic.trim()}
-                                className="absolute right-2 top-2 h-10 px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
+                                className="absolute right-2 top-2 h-10 px-6 bg-[#a855f7] hover:bg-[#9333ea] text-white font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
                             >
                                 {isLoading ? (
                                     <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
@@ -132,70 +239,179 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                 )}
                             </button>
                         </div>
+
+                        {/* Aspect Ratio Selector */}
+                        <div className="flex flex-wrap gap-4 items-center">
+                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2">Formato:</span>
+                             <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setConfig(prev => ({...prev, aspectRatio: '1:1'}))}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${config.aspectRatio === '1:1' ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(99,102,241,0.3)]' : 'bg-transparent border-slate-700 text-slate-400 hover:bg-white/5'}`}
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">crop_square</span>
+                                    <span className="text-xs font-bold">Post (1:1)</span>
+                                </button>
+                                <button 
+                                    onClick={() => setConfig(prev => ({...prev, aspectRatio: '9:16'}))}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${config.aspectRatio === '9:16' ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(99,102,241,0.3)]' : 'bg-transparent border-slate-700 text-slate-400 hover:bg-white/5'}`}
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">crop_portrait</span>
+                                    <span className="text-xs font-bold">Story (9:16)</span>
+                                </button>
+                                <button 
+                                    onClick={() => setConfig(prev => ({...prev, aspectRatio: '16:9'}))}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${config.aspectRatio === '16:9' ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(99,102,241,0.3)]' : 'bg-transparent border-slate-700 text-slate-400 hover:bg-white/5'}`}
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">crop_landscape</span>
+                                    <span className="text-xs font-bold">Capa (16:9)</span>
+                                </button>
+                             </div>
+                        </div>
                     </div>
 
                     {/* Results Grid */}
                     {error && (
-                        <div className="p-4 rounded-xl bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-200">
+                        <div className="p-4 rounded-xl bg-red-900/20 border border-red-500/30 text-red-200 text-center">
                             {error}
                         </div>
                     )}
 
                     {isLoading && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {Array.from({ length: 6 }).map((_, i) => (
-                                <div key={i} className={`w-full rounded-2xl bg-slate-200 dark:bg-slate-800 animate-pulse border border-slate-300 dark:border-slate-700 relative overflow-hidden ${getAspectRatioClass()}`}>
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
-                                </div>
-                            ))}
+                        <div className="flex flex-col gap-4">
+                            <h3 className="font-bold text-xl text-white">Gerando Conceitos...</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <div key={i} className={`w-full rounded-2xl bg-slate-800 animate-pulse border border-slate-700 relative overflow-hidden aspect-[4/5]`}>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
                     {!isLoading && data && (
-                        <div className="flex flex-col gap-4">
-                            <h3 className="font-bold text-xl dark:text-white">6 Variações Geradas</h3>
+                        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-bold text-xl text-white">6 Variações Geradas</h3>
+                                
+                                <button 
+                                    onClick={handleDownloadAll}
+                                    disabled={isDownloading}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-lg font-bold text-sm shadow-lg shadow-emerald-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isDownloading ? (
+                                        <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                                    ) : (
+                                        <span className="material-symbols-outlined text-[20px]">download_for_offline</span>
+                                    )}
+                                    <span>Download Completo (ZIP)</span>
+                                </button>
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {data.variations.map((item) => (
-                                    <div key={item.id} className="group relative flex flex-col bg-white dark:bg-[#161a2c] border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-1">
-                                        {/* Preview Area (Abstract Representation) */}
-                                        <div className={`w-full relative bg-gray-100 dark:bg-black/40 overflow-hidden ${getAspectRatioClass()}`}>
-                                            <div className="absolute inset-0 opacity-30 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(135deg, ${item.colorPaletteSuggestion})` }}></div>
-                                            <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
-                                                <h4 className="text-xl font-black text-slate-900 dark:text-white/80 uppercase tracking-tighter leading-none opacity-20 transform -rotate-12 scale-150 select-none">
-                                                    {item.conceptTitle.split(' ')[0]}
-                                                </h4>
-                                            </div>
-                                            <div className="absolute top-3 left-3">
-                                                <span className="bg-black/60 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded border border-white/10 uppercase">
-                                                    {item.conceptTitle}
-                                                </span>
-                                            </div>
+                                    <div key={item.id} className="group relative flex flex-col bg-[#0f172a] border border-slate-800 hover:border-primary/50 rounded-2xl overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/10">
+                                        
+                                        {/* HEADER TAG */}
+                                        <div className="absolute top-4 left-4 z-20 pointer-events-none">
+                                            <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded border border-white/20 uppercase tracking-wider">
+                                                VARIAÇÃO #{item.id}
+                                            </span>
                                         </div>
-
-                                        {/* Info & Prompt */}
-                                        <div className="p-4 flex flex-col gap-3">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="material-symbols-outlined text-purple-400 text-sm">psychology</span>
-                                                    <span className="text-xs font-bold text-purple-600 dark:text-purple-300">Ângulo de Marketing</span>
+                                        
+                                        {/* EXPAND/PREVIEW INDICATOR (HOVER) */}
+                                        {item.generatedImage && (
+                                            <div className="absolute inset-x-0 top-0 h-1/2 z-20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                <div className="bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/20">
+                                                    <span className="material-symbols-outlined text-white text-sm">open_in_full</span>
+                                                    <span className="text-[10px] font-bold text-white uppercase">Visualizar</span>
                                                 </div>
-                                                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                                            </div>
+                                        )}
+                                        
+                                        {/* Loading Indicator for Image Generation */}
+                                        {generatingImages[item.id] && (
+                                            <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-md px-2 py-1 rounded border border-white/20 flex items-center gap-2">
+                                                 <span className="material-symbols-outlined text-yellow-400 text-sm animate-spin">sync</span>
+                                                 <span className="text-[10px] text-white font-bold">Gerando Imagem (Nano)...</span>
+                                            </div>
+                                        )}
+
+                                        {/* EXPORT AREA (IMAGE + TEXT) */}
+                                        {/* Added cursor-pointer and onClick for Preview */}
+                                        <div 
+                                            className={`creative-card-export w-full relative bg-slate-900 overflow-hidden ${getAspectRatioClass()} ${item.generatedImage ? 'cursor-pointer' : ''}`}
+                                            onClick={() => {
+                                                if(item.generatedImage) {
+                                                    setPreviewData({ url: item.generatedImage, title: item.conceptTitle });
+                                                }
+                                            }}
+                                        >
+                                            
+                                            {/* LAYER 1: Generated Image or Fallback Gradient */}
+                                            {item.generatedImage ? (
+                                                <img 
+                                                    src={item.generatedImage} 
+                                                    className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-1000"
+                                                    alt="Generated background"
+                                                />
+                                            ) : (
+                                                /* Placeholder while generating */
+                                                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(135deg, ${item.colorPaletteSuggestion})` }}></div>
+                                            )}
+
+                                            {/* LAYER 2: Overlay for Readability */}
+                                            <div className="absolute inset-0 opacity-40 bg-black mix-blend-multiply pointer-events-none"></div>
+                                            <div className="absolute inset-0 opacity-20 bg-gradient-to-t from-black to-transparent pointer-events-none"></div>
+                                            
+                                            {/* AUTO DESIGN CONTENT (Dynamic Layouts) */}
+                                            {/* Added pointer-events-none so click goes to parent container for preview */}
+                                            <div className={`absolute inset-0 flex flex-col p-8 z-10 pointer-events-none ${item.layoutMode === 'left-aligned' ? 'items-start text-left justify-end pb-12' : 'items-center text-center justify-center'}`}>
+                                                
+                                                {/* Dynamic Font Class */}
+                                                <h4 className={`text-2xl font-black text-white uppercase tracking-tight leading-none drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] mb-3 ${getFontClass(item.fontStyle)}`}>
+                                                    {item.conceptTitle}
+                                                </h4>
+                                                
+                                                {item.layoutMode === 'centered' && <div className="w-12 h-1 bg-white/80 mb-3 rounded-full shadow-[0_0_10px_white]"></div>}
+                                                
+                                                <p className="text-xs text-white/95 font-medium max-w-[90%] drop-shadow-xl bg-black/30 p-2 rounded border border-white/10 backdrop-blur-sm">
                                                     {item.marketingAngle}
                                                 </p>
                                             </div>
                                             
-                                            <div className="bg-slate-50 dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-white/5">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-[10px] font-bold uppercase text-slate-400">Prompt Visual</span>
+                                            {/* Style Overlay Badge */}
+                                            <div className="absolute bottom-2 right-2 opacity-50">
+                                                 <span className="text-[8px] text-white uppercase tracking-widest">{item.layoutMode} • {item.fontStyle}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* INFO BODY */}
+                                        <div className="p-5 flex flex-col gap-4 bg-[#0f172a]">
+                                            {/* Marketing Angle */}
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <span className="material-symbols-outlined text-purple-400 text-sm">psychology</span>
+                                                    <span className="text-xs font-bold text-purple-300">Ângulo de Marketing</span>
+                                                </div>
+                                                <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                                                    {item.marketingAngle}
+                                                </p>
+                                            </div>
+                                            
+                                            {/* Visual Prompt Box */}
+                                            <div className="bg-[#020617] p-3 rounded-lg border border-slate-800 group-hover:border-slate-700 transition-colors">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">PROMPT VISUAL (NANO)</span>
                                                     <button 
                                                         onClick={() => navigator.clipboard.writeText(item.visualPrompt)}
-                                                        className="text-primary hover:text-white hover:bg-primary rounded p-1 transition-colors"
+                                                        className="text-primary hover:text-white transition-colors"
                                                         title="Copiar Prompt"
                                                     >
                                                         <span className="material-symbols-outlined text-[14px]">content_copy</span>
                                                     </button>
                                                 </div>
-                                                <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 line-clamp-4 leading-tight">
+                                                <p className="text-[10px] font-mono text-slate-500 line-clamp-4 leading-relaxed">
                                                     {item.visualPrompt}
                                                 </p>
                                             </div>

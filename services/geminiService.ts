@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { CarouselData, CreativeData, GenerationConfig, VisualStyleType, CharacterStyleType, ToneType, CarouselGoal, MotionConfig, MotionResult, MotionStyle } from "../types";
+import { CarouselData, CreativeData, GenerationConfig, VisualStyleType, CharacterStyleType, ToneType, CarouselGoal, MotionConfig, MotionResult, MotionStyle, SlideLayoutType } from "../types";
 
 // Helper to safely get API Key
 const getApiKey = (): string => {
@@ -11,7 +11,7 @@ const getApiKey = (): string => {
   return key;
 };
 
-// --- DIRETRIZES DE MARKETING (GOAL-BASED) ---
+// --- ESTRATÉGIAS DE COPYWRITING ---
 const GOAL_INSTRUCTIONS: Record<CarouselGoal, string> = {
     [CarouselGoal.GROWTH]: "ESTRATÉGIA: Crescimento. Slide 1: QUEBRA DE PADRÃO (Imagem chocante + Título polêmico). Slide 2: Retenção. Slide Final: CTA de 'Salvar'.",
     [CarouselGoal.SALES]: "ESTRATÉGIA: VENDA AGRESSIVA. Slide 1: A DOR do cliente escancarada. Slide 2: Por que os métodos atuais falham. Slide 3: A Sua Solução (Mecanismo Único). Slide Final: CTA DE COMPRA IMEDIATA.",
@@ -20,12 +20,90 @@ const GOAL_INSTRUCTIONS: Record<CarouselGoal, string> = {
     [CarouselGoal.VIRAL]: "ESTRATÉGIA: Relatabilidade. 'Eu na vida real'. Humor rápido e visual."
 };
 
+// --- DICIONÁRIO DE ESTILOS VISUAIS (O "CÉREBRO" DE DESIGN) ---
+// Isso treina o modelo para saber exatamente o que cada nome significa visualmente.
+export const STYLE_PROMPT_MAP: Record<string, string> = {
+    // COMERCIAIS
+    "Neon Tech": "dark background, glowing purple and blue neon lights, futuristic UI elements, high contrast, cyber aesthetic, 8k render",
+    "Cyber Promo": "aggressive digital aesthetic, glitch effects, bold typography, high energy, neon green and black, futuristic HUD",
+    "Premium Black & Gold": "luxurious black texture background, metallic gold accents, serif typography, elegant lighting, premium product showcase",
+    "Oferta Explosiva": "vibrant red and yellow, dynamic motion blur, 3D particles, impact text, exciting atmosphere",
+    "Flash Sale Dinâmica": "fast motion, bright electric colors, lightning bolts, countdown aesthetic, urgent visual style",
+    "Desconto Minimalista": "clean solid background, huge bold typography percent signs, plenty of white space, modern swiss design",
+    "Vitrine 3D": "3D podium, studio lighting, soft shadows, pastel colors, clean product display environment",
+    "Produto Flutuante": "anti-gravity effect, levitating objects, soft clouds or abstract shapes, dreamy lighting, focus on center",
+    "Tech Clean": "white and silver palette, glass textures, soft blue glow, modern technology feel, apple aesthetic",
+    "Marketplace Moderno": "colorful grid layout, soft rounded corners, playful icons, user interface elements, app store vibe",
+
+    // BRANDING
+    "Branding Minimal": "lots of negative space, neutral colors (beige, grey, white), sophisticated sans-serif fonts, gallery look",
+    "Luxo Sofisticado": "rich velvet textures, deep jewel tones (emerald, sapphire), classic elegance, cinematic lighting",
+    "Corporativo Moderno": "navy blue and white, geometric shapes, professional stock photography style, clean lines, trustworthy",
+    "Visual Institucional": "solid brand colors, watermark logos, structured grid, formal composition, clear hierarchy",
+    "Startup Tech": "vibrant gradients (purple/orange), isometric illustrations, dark mode UI, dot patterns, innovative feel",
+    "Clean Business": "white background, thin grey lines, blue accents, airy composition, organized and professional",
+    "Profissional Elegante": "monochrome palette, sharp focus, high quality textures, executive look, confident",
+    "Branding Futurista": "chrome textures, liquid metal shapes, iridescent colors, sci-fi minimalism, forward thinking",
+    "Marca Premium": "matte finishes, spot gloss effects simulated, high contrast black and white, timeless design",
+    "Estilo Editorial": "magazine layout, large serif headings, artistic photography cropping, fashion editorial vibe",
+
+    // SOCIAL MEDIA
+    "Carrossel Informativo": "clear card separations, bullet point icons, progress bars, readable typography, educational layout",
+    "Post Educativo": "chalkboard or whiteboard aesthetic, doodle icons, arrows and diagrams, handwritten font elements",
+    "Conteúdo de Valor": "high contrast text, simple abstract background shapes, focus on readability and data visualization",
+    "Story Dinâmico": "vertical composition, kinetic typography, background video blur effect, engaging stickers look",
+    "Reels Promocional": "fast paced visual rhythm, bold overlay text, motion blur background, trend aesthetic",
+    "Feed Harmonizado": "consistent color filter, puzzle feed edges, soft continuous aesthetic, seamless pattern",
+    "Destaque de Benefícios": "checkmarks, glowing highlights on key items, split screen comparison, persuasive visual cues",
+    "Chamada para Ação": "arrows pointing to button, pulsing elements, high contrast button graphic, urgent visual flow",
+    "Conteúdo Engajador": "meme-style layout, relatable imagery, question marks, conversation bubbles, interactive feel",
+    "Post de Conversão": "trust badges, 5 star rating visuals, testimonial quotes design, guarantee seals, credible look",
+
+    // CRIATIVOS
+    "Futurista Neon": "synthwave aesthetic, retro sun, grid floor, pink and cyan neon, outrun style",
+    "Estilo Metaverso": "3D avatars, virtual reality goggles, floating digital screens, purple haze, cyber environment",
+    "Visual Holográfico": "translucent rainbow textures, iridescent foil, holographic stickers, futuristic shimmer",
+    "Estética Cyberpunk": "night city rain, neon signs reflection, dystopian tech, cables and wires, gritty texture",
+    "Arte Digital": "abstract fluid shapes, generative art patterns, vibrant ink splashes, creative composition",
+    "Design 3D": "blender 3d style, clay render or glossy plastic, soft lighting, cute shapes, toy-like aesthetic",
+    "Visual Isométrico": "3D isometric view, miniature world, blocky structures, clean vector look, sim city vibe",
+    "Estilo UI/UX": "glassmorphism cards, blurred background, app interface buttons, user profile circles, modern dashboard",
+    "Visual Gamer": "RGB lighting, dark background, angular geometric shapes, tech glitch, esports aesthetic",
+    "Tech Dark Mode": "pure black background, dark grey cards, subtle white text, coding terminal aesthetic",
+
+    // TENDÊNCIAS
+    "Glassmorphism": "frosted glass cards, background blur, vivid background orbs, white borders, translucent layers",
+    "Neumorphism": "soft extruded shapes, light shadows, tactile feel, monochromatic off-white, soft plastic look",
+    "Dark UI": "charcoal grey surfaces, vivid accent colors, high contrast text, oled friendly, sleek interface",
+    "Soft Gradient": "mesh gradients, pastel color blends, aurora borealis effect, soothing and calm background",
+    "Bold Typography": "massive text filling the screen, tight letter spacing, brutalist layout, high impact",
+    "Clean Tech": "circuit board lines, white minimalism, silver accents, laboratory clean look",
+    "Visual Dinâmico": "speed lines, motion trails, tilted composition, action oriented, high energy",
+    "High Contrast": "black and yellow or black and white, hazard stripes, warning aesthetic, attention grabbing",
+    "Estética Minimal": "single object focus, vast empty space, bauhaus influence, geometric simplicity",
+    "Visual Premium": "gold foil textures, silk fabric background, spotlight effect, museum display style",
+    
+    // NICHOS
+    "Eletrônicos Premium": "sleek metal textures, blue LED lights, macro photography style, high tech gadget feel",
+    "Moda Urbana": "streetwear vibe, graffiti textures, concrete background, flash photography style",
+    "Beleza Estética": "soft skin tones, water ripples, floral elements, pastel pink and beige, spa atmosphere",
+    "Fitness Moderno": "dynamic action freeze, sweat droplets, neon green or orange energy, gym texture background",
+    "Imobiliário Luxo": "marble floors, architectural lines, golden hour lighting, wide angle expansive feel",
+    "Restaurante Gourmet": "dark moody lighting, steam rising, warm wood textures, appetizing color palette",
+    
+    // EMOCIONAL
+    "Storytelling Visual": "cinematic framing, emotional lighting, character focus, narrative sequence",
+    "Inspiração": "sunrise colors, mountain peaks, wide open spaces, motivational atmosphere",
+    "Humanizado": "warm lighting, candid photography style, genuine smiles, soft focus, approachable",
+    "Autoridade": "library background, podium, books, deep blue and mahogany, serious and credible"
+};
+
 // --- SCHEMAS ---
 const carouselSchema: Schema = {
   type: Type.OBJECT,
   properties: {
     topic: { type: Type.STRING },
-    referenceAnalysis: { type: Type.STRING, description: "DESCRIÇÃO DETALHADA DA IMAGEM DE REFERÊNCIA (Se houver). Descreva cabelo, olhos, roupa, acessórios." },
+    referenceAnalysis: { type: Type.STRING },
     overview: { type: Type.STRING },
     slides: {
       type: Type.ARRAY,
@@ -36,8 +114,16 @@ const carouselSchema: Schema = {
           title: { type: Type.STRING },
           content: { type: Type.STRING },
           visualDescription: { type: Type.STRING },
-          imagePrompt: { type: Type.STRING, description: "Comece OBRIGATORIAMENTE com: 'A person [descrição da referência]...' se houver imagem." },
-          layoutSuggestion: { type: Type.STRING }
+          imagePrompt: { type: Type.STRING, description: "Prompt visual fotográfico completo. Use termos como '8k', 'cinematic lighting', 'depth of field'." },
+          layoutSuggestion: { 
+              type: Type.STRING, 
+              enum: [
+                  SlideLayoutType.FULL_IMAGE_OVERLAY, 
+                  SlideLayoutType.SPLIT_TOP_IMAGE, 
+                  SlideLayoutType.TYPOGRAPHIC_CENTER, 
+                  SlideLayoutType.MINIMAL_ICON
+              ]
+          }
         },
         required: ["slideNumber", "title", "content", "visualDescription", "imagePrompt", "layoutSuggestion"]
       }
@@ -58,24 +144,51 @@ const creativeSchema: Schema = {
                     id: { type: Type.INTEGER },
                     conceptTitle: { type: Type.STRING },
                     marketingAngle: { type: Type.STRING },
-                    visualPrompt: { type: Type.STRING },
-                    colorPaletteSuggestion: { type: Type.STRING }
+                    visualPrompt: { type: Type.STRING, description: "Prompt visual para gerar uma imagem DE FUNDO. Deve ter espaço negativo para texto." },
+                    colorPaletteSuggestion: { type: Type.STRING, description: "CSS Linear Gradient valid string" },
+                    fontStyle: { type: Type.STRING, enum: ['sans', 'serif', 'mono', 'display'] },
+                    layoutMode: { type: Type.STRING, enum: ['centered', 'left-aligned', 'bold-frame'] }
                 },
-                required: ["id", "conceptTitle", "marketingAngle", "visualPrompt", "colorPaletteSuggestion"]
+                required: ["id", "conceptTitle", "marketingAngle", "visualPrompt", "colorPaletteSuggestion", "fontStyle", "layoutMode"]
             }
         }
     },
     required: ["topic", "variations"]
 };
 
-// --- MOTION DIRECTOR PROMPT ---
-const MOTION_DIRECTOR_SYSTEM_INSTRUCTION = `
-You are a Senior Motion Design Director AI.
-Mission: Generate premium video prompts for Veo.
-Strictly follow: Cinematic, 4k, Professional Lighting.
-`;
-
 // --- API FUNCTIONS ---
+
+export const generateSocialImage = async (prompt: string, aspectRatio: '1:1' | '9:16' | '16:9' = '1:1'): Promise<string | null> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+    const ai = new GoogleGenAI({ apiKey });
+
+    try {
+        const enhancedPrompt = `High quality, photorealistic or 3D render, trending on artstation. ${prompt}`;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image', 
+            contents: {
+                parts: [{ text: enhancedPrompt }]
+            },
+            config: {
+                imageConfig: {
+                    aspectRatio: aspectRatio,
+                }
+            }
+        });
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+             if (part.inlineData) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+             }
+        }
+        return null;
+    } catch (error) {
+        console.error("Error generating social image:", error);
+        return null;
+    }
+}
 
 export const generateMotionConcept = async (config: MotionConfig): Promise<string | null> => {
     const apiKey = getApiKey();
@@ -92,10 +205,10 @@ export const generateMotionConcept = async (config: MotionConfig): Promise<strin
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: prompt,
             config: {
-                systemInstruction: MOTION_DIRECTOR_SYSTEM_INSTRUCTION,
+                systemInstruction: "You are a Senior Motion Design Director AI.",
                 temperature: 0.7,
             },
         });
@@ -149,74 +262,50 @@ export const generateCarousel = async (input: string, config: GenerationConfig):
     if (!apiKey) return null;
     const ai = new GoogleGenAI({ apiKey });
     
-    // SEPARAÇÃO LÓGICA: COPYWRITING vs DESIGN
     const marketingStrategy = GOAL_INSTRUCTIONS[config.goal] || GOAL_INSTRUCTIONS[CarouselGoal.AUTHORITY];
     
-    // Determina a instrução visual: Preset ou Customizado?
+    // LOOKUP THE STYLE PROMPT from our dictionary
+    const selectedStyleName = config.style;
+    const styleDescription = STYLE_PROMPT_MAP[selectedStyleName] || `Visual style: ${selectedStyleName}`;
+
     let visualInstructionBlock = "";
-    if (config.style === VisualStyleType.CUSTOM && config.customStylePrompt) {
+    if (config.style === 'Personalizado (Prompt)' && config.customStylePrompt) {
         visualInstructionBlock = `
-        ====================================================
-        🎨 DIRETRIZ VISUAL PERSONALIZADA (ALTA PRIORIDADE)
-        ====================================================
-        O usuário definiu um estilo PRÓPRIO. Ignore qualquer preset padrão.
-        
-        INSTRUÇÃO VISUAL EXATA: "${config.customStylePrompt}"
-        
-        Aplique essa estética (cores, ambiente, luz) em TODOS os prompts visuais ('imagePrompt').
+        VISUAL PERSONALIZADO: "${config.customStylePrompt}"
         `;
     } else {
         visualInstructionBlock = `
-        DIRETRIZ VISUAL: Estilo "${config.style}".
+        ESTILO VISUAL SELECIONADO: "${selectedStyleName}"
+        DIRETRIZES DE DESIGN ESTRITAS: ${styleDescription}
+        Aplique esses conceitos visuais (iluminação, textura, cores) em TODOS os 'imagePrompt'.
         `;
     }
     
-    // Prompt extremamente diretivo
     let instructions = `
     VOCÊ É UM GERADOR DE CARROSSÉIS PROFISSIONAL.
     
-    CONTEXTO DO PROJETO:
-    - INPUT: "${input}"
-    - TOM DE VOZ: ${config.tone}
-    - QTD SLIDES: ${config.slideCount}
+    INPUT: "${input}"
+    TOM DE VOZ: ${config.tone}
     
     ---------------------------------------------------
-    🧠 1. REGRAS DE COPYWRITING (Controlado pelo Objetivo: ${config.goal})
+    1. COPYWRITING (Objetivo: ${config.goal})
     ---------------------------------------------------
-    Sua estrutura de TEXTO (Titulo e Conteúdo) deve seguir estritamente esta estratégia:
     ${marketingStrategy}
     
-    NÃO SEJA INFORMATIVO SE O OBJETIVO FOR VENDAS. SEJA PERSUASIVO.
-    
     ---------------------------------------------------
-    🎨 2. REGRAS DE DESIGN (Controlado pelo Estilo)
+    2. DESIGN & VISUAL (Fundamental)
     ---------------------------------------------------
     ${visualInstructionBlock}
+    
+    IMPORTANTE: No campo 'imagePrompt', descreva a imagem de fundo que será gerada pela IA. 
+    Use termos artísticos (ex: 'bokeh', 'cinematic', 'minimalist', 'neon glow').
     `;
 
     if (config.referenceImage) {
         instructions += `
-    
-    📷 3. REGRAS DE PERSONAGEM (Imagem de Referência Detectada)
-    ---------------------------------------------------
-    1. PRIMEIRO: Analise a imagem. Preencha 'referenceAnalysis' com detalhes (cabelo, óculos, barba, roupa).
-    2. SEGUNDO: Combine a PESSOA DA FOTO com o ESTILO VISUAL definido acima.
-       Exemplo: "O homem da foto [descrição], em um fundo [SEU ESTILO VISUAL AQUI]..."
-    
-    NÃO REMOVA A PESSOA. NÃO IGNORE O ESTILO VISUAL PERSONALIZADO.
-    `;
-    } else {
-        instructions += `
-    Sem imagem de referência. Crie visuais baseados puramente no Estilo Visual definido.
+    IMAGEM DE REFERÊNCIA: Combine a pessoa da foto com o ESTILO VISUAL definido acima.
     `;
     }
-
-    const systemInstruction = `
-    Você é uma IA híbrida: Copywriter de Elite + Diretor de Arte Criativo.
-    Separe as tarefas:
-    - O 'content' segue o OBJETIVO (${config.goal}).
-    - O 'imagePrompt' segue o ESTILO VISUAL (${config.style === 'Personalizado (Prompt)' ? 'Custom' : config.style}).
-    `;
 
     let requestContent: any = instructions;
     
@@ -233,13 +322,13 @@ export const generateCarousel = async (input: string, config: GenerationConfig):
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: requestContent,
             config: {
-                systemInstruction,
+                systemInstruction: "Você é um Diretor de Arte AI especializado em Social Media.",
                 responseMimeType: "application/json",
                 responseSchema: carouselSchema,
-                temperature: 0.4 // Temperatura média para permitir criatividade no visual customizado mas rigor no copy
+                temperature: 0.5 
             },
         });
 
@@ -256,7 +345,29 @@ export const generateCreativeVariations = async (topic: string, config: Generati
     if (!apiKey) return null;
     const ai = new GoogleGenAI({ apiKey });
     
-    const promptText = `TEMA: "${topic}". Gere 6 variações visuais.`;
+    // Lookup Style
+    const selectedStyleName = config.style;
+    const styleDescription = STYLE_PROMPT_MAP[selectedStyleName] || `Visual style: ${selectedStyleName}`;
+
+    const promptText = `
+    ATUE COMO UM "AUTO DESIGNER AGENT".
+    
+    TEMA: "${topic}".
+    ESTILO VISUAL ALVO: "${selectedStyleName}"
+    
+    DEFINIÇÃO VISUAL DO ESTILO (SIGA ESTRITAMENTE): 
+    "${styleDescription}"
+    
+    SUA MISSÃO:
+    1. Escolha a MELHOR 'fontStyle' (sans, serif, mono) para este estilo.
+    2. Crie uma 'colorPaletteSuggestion' que combine com a descrição visual.
+    3. GERE UM 'visualPrompt' OTIMIZADO PARA CRIAÇÃO DE IMAGEM (BACKGROUND).
+       - O prompt deve descrever EXATAMENTE o estilo "${selectedStyleName}".
+       - Deve pedir "espaço negativo" para o texto.
+    
+    Gere 6 variações ÚNICAS dentro deste estilo visual.
+    `;
+
     let requestContent: any = promptText;
      if (config.referenceImage) {
         const base64Data = config.referenceImage.includes(',') ? config.referenceImage.split(',')[1] : config.referenceImage;
@@ -270,11 +381,12 @@ export const generateCreativeVariations = async (topic: string, config: Generati
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview", 
             contents: requestContent,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: creativeSchema,
+                temperature: 0.8,
             },
         });
         if (response.text) return JSON.parse(response.text) as CreativeData;
@@ -292,8 +404,8 @@ export const refineCarousel = async (currentData: CarouselData, instruction: str
     
     try {
         const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: `DADOS: ${JSON.stringify(currentData)}\nREFINAMENTO: ${instruction}`,
+              model: "gemini-3-flash-preview",
+              contents: `DADOS ATUAIS: ${JSON.stringify(currentData)}\nINSTRUÇÃO DE REFINAMENTO: ${instruction}`,
               config: { responseMimeType: "application/json", responseSchema: carouselSchema },
         });
         if (response.text) return JSON.parse(response.text) as CarouselData;
@@ -310,7 +422,10 @@ export const chatWithAssistant = async (message: string, history: { role: 'user'
     const ai = new GoogleGenAI({ apiKey });
     
     try {
-        const chat = ai.chats.create({ model: "gemini-2.5-flash", history });
+        const chat = ai.chats.create({ 
+            model: "gemini-3-flash-preview", 
+            history 
+        });
         const result = await chat.sendMessage({ message });
         return result.text || "";
     } catch (error) {

@@ -1,117 +1,330 @@
-import React from 'react';
-import { Slide, VisualStyleType } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Slide, VisualStyleType, SlideLayoutType } from '../types';
 
 interface SlideCardProps {
   slide: Slide;
   totalSlides: number;
-  style: VisualStyleType;
-  referenceImage?: string; // Prop nova
+  style: string; // Updated to string to support all new styles
+  referenceImage?: string; 
+  brandColor?: string;
+  onUpdate: (updatedSlide: Slide) => void; 
+  isMobileMode?: boolean; 
 }
 
-const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, referenceImage }) => {
+const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, referenceImage, brandColor, onUpdate, isMobileMode }) => {
+  const [localTitle, setLocalTitle] = useState(slide.title);
+  const [localContent, setLocalContent] = useState(slide.content);
+  const [isInverted, setIsInverted] = useState(false); 
+
+  const handleBlur = () => {
+      onUpdate({
+          ...slide,
+          title: localTitle,
+          content: localContent
+      });
+  };
+
+  const cycleLayout = () => {
+      const layouts = Object.values(SlideLayoutType);
+      const currentIndex = layouts.indexOf(slide.layoutSuggestion);
+      const nextIndex = (currentIndex + 1) % layouts.length;
+      onUpdate({
+          ...slide,
+          layoutSuggestion: layouts[nextIndex]
+      });
+  };
+
+  // Helper to detect if the style implies a Light Theme
+  const isLightStyle = (styleName: string): boolean => {
+      const lower = styleName.toLowerCase();
+      return lower.includes('clean') || lower.includes('minimal') || lower.includes('white') || lower.includes('soft') || lower.includes('educativo') || lower.includes('bege');
+  };
   
-  const getCardStyle = () => {
-    switch (style) {
-      case VisualStyleType.CLEAN_LIGHT:
-        return "bg-white text-slate-800 border-gray-200";
-      case VisualStyleType.GRADIENT_TECH:
-        return "bg-gradient-to-br from-indigo-900 to-slate-900 text-white border-white/10 shadow-[0_0_15px_rgba(79,70,229,0.3)]";
-      case VisualStyleType.NEO_BRUTALISM:
-        return "bg-[#FFFDF5] text-black border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl";
-      case VisualStyleType.RETRO_FUTURISM:
-        return "bg-[#1a0b2e] text-cyan-50 border-purple-500/50 shadow-[0_0_20px_rgba(216,27,96,0.5)]";
-      case VisualStyleType.WATERCOLOR_MINIMAL:
-        return "bg-[#fff1f2] text-slate-700 border-rose-200";
-      case VisualStyleType.HAND_DRAWN:
-        return "bg-[#fdfbf7] text-gray-800 border-2 border-dashed border-gray-400 font-serif";
-      case VisualStyleType.MAGAZINE:
-        return "bg-white text-black border-gray-300 font-serif";
-      case VisualStyleType.STORYBOARD:
-        return "bg-white text-black border-2 border-black divide-y-2 divide-black";
-      case VisualStyleType.ICON_GRID:
-        return "bg-slate-50 text-slate-800 border-gray-200";
-      case VisualStyleType.QUOTE_CARD:
-        return "bg-[#3e2723] text-[#ffecb3] border-amber-900 font-serif";
-      case VisualStyleType.THREE_D_ISOMETRIC:
-        return "bg-[#f0f4f8] text-slate-700 border-white shadow-xl";
-      case VisualStyleType.THREE_D_CLAYMORPHISM:
-        return "bg-[#ffe4e6] text-slate-700 border-white/50 rounded-2xl shadow-[inset_0_0_20px_rgba(255,255,255,0.5),0_10px_20px_rgba(0,0,0,0.1)]";
-      case VisualStyleType.THREE_D_CARTOON:
-        return "bg-gradient-to-br from-orange-400 to-pink-500 text-white border-white/20 shadow-lg";
-      case VisualStyleType.MINIMAL_DARK:
-      default:
-        return "bg-[#1a1a1a] text-white border-gray-800";
-    }
+  // Helper to detect if the style implies a Neon/Dark Theme
+  const isNeonStyle = (styleName: string): boolean => {
+      const lower = styleName.toLowerCase();
+      return lower.includes('neon') || lower.includes('cyber') || lower.includes('dark') || lower.includes('glow') || lower.includes('gamer') || lower.includes('tech');
   };
 
-  const getGradientOverlay = () => {
-    if (style === VisualStyleType.GRADIENT_TECH) {
-      return <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-10 opacity-60"></div>;
+  const getContainerStyle = () => {
+    if (isInverted) {
+        return "bg-white text-black border-gray-200 font-sans";
     }
-    return null;
+
+    // Dynamic Logic based on style name string
+    if (isLightStyle(style)) {
+        return "bg-white text-slate-800 border-gray-200 font-sans";
+    }
+    if (isNeonStyle(style)) {
+        return "bg-slate-900 text-white border-white/10 font-display shadow-neon-primary";
+    }
+    
+    // Default Dark
+    return "bg-[#1a1a1a] text-white border-gray-800 font-sans";
   };
 
-  // Detecta se há referência pessoal no prompt para destacar
-  const hasPersonRef = slide.imagePrompt.toLowerCase().includes("person") || slide.imagePrompt.toLowerCase().includes("reference") || (referenceImage !== undefined);
+  const getTextColors = () => {
+       if (isInverted) return { title: 'text-black', body: 'text-slate-800', number: 'text-slate-900/20' };
 
-  return (
-    <div className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:scale-[1.01] ${getCardStyle()}`}>
-      
-      {/* Reference Image Background Overlay (Ghosting) */}
-      {referenceImage && (
-        <div className="absolute inset-0 z-0">
-            <img 
+       if (isLightStyle(style)) {
+           return { title: 'text-slate-900', body: 'text-slate-600', number: 'text-slate-300' };
+       }
+       return { title: 'text-white', body: 'text-gray-300', number: 'text-white/20' };
+  };
+
+  const colors = getTextColors();
+  
+  const brandStyle = brandColor ? { color: brandColor } : {};
+  const brandBgStyle = brandColor ? { backgroundColor: brandColor } : {};
+  const brandGradientText = brandColor ? { 
+      background: `linear-gradient(to right, ${brandColor}, white)`,
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent'
+  } : {};
+  
+  const neonShadow = (brandColor && isNeonStyle(style)) ? { boxShadow: `0 0 20px ${brandColor}40` } : {};
+
+  // Background Decorativo (Pattern/Gradient)
+  const renderBackgroundDecor = () => {
+    if (isInverted) return null;
+    if (isNeonStyle(style)) {
+        return <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-slate-900/40 z-0"></div>;
+    }
+    // Noise Texture Overlay for all "Premium" feels
+    return <div className="absolute inset-0 opacity-[0.05] pointer-events-none z-0 mix-blend-overlay" style={{backgroundImage: 'url("https://grainy-gradients.vercel.app/noise.svg")'}}></div>;
+  };
+
+  const renderGhostImage = (className: string) => {
+      if (!referenceImage) return null;
+      if (slide.layoutSuggestion === SlideLayoutType.TYPOGRAPHIC_CENTER) return null;
+
+      return (
+        <div className={`absolute ${className} overflow-hidden pointer-events-none`}>
+             <img 
                 src={referenceImage} 
-                className={`w-full h-full object-cover mix-blend-overlay opacity-30 grayscale transition-opacity group-hover:opacity-50`} 
+                className="w-full h-full object-cover mix-blend-overlay opacity-40 grayscale" 
                 alt="Reference Ghost" 
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
+            {className.includes('inset-0') && <div className="absolute inset-0 bg-black/60"></div>}
         </div>
-      )}
+      );
+  };
 
-      {/* Background/Visual Placeholder */}
-      {getGradientOverlay()}
+  // --- RENDERIZAÇÃO BASEADA EM LAYOUT ---
 
-      {/* Header */}
-      <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
-        <span className={`text-4xl font-black ${style === VisualStyleType.NEO_BRUTALISM ? 'opacity-100 text-black' : 'opacity-30'}`}>
-            {String(slide.slideNumber).padStart(2, '0')}
-        </span>
-        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded backdrop-blur-sm border 
-            ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-white border-black text-black border-2' : 'bg-white/10 border-white/10'}`}>
-            {slide.layoutSuggestion}
-        </span>
-      </div>
+  const renderContent = () => {
+    switch (slide.layoutSuggestion) {
+        case SlideLayoutType.SPLIT_TOP_IMAGE:
+            return (
+                <div className="flex flex-col h-full w-full">
+                    <div className="h-[55%] w-full relative bg-slate-800/50 overflow-hidden group-hover:h-[50%] transition-all duration-500">
+                        {renderGhostImage('inset-0')}
+                        {!referenceImage && (
+                            <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                                <span className="material-symbols-outlined text-6xl" style={brandStyle}>image</span>
+                            </div>
+                        )}
+                        <div className="absolute top-4 left-4 z-20">
+                            <span className={`text-5xl font-black ${colors.number} opacity-50`}>
+                                {String(slide.slideNumber).padStart(2, '0')}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex-1 p-6 flex flex-col justify-center relative z-10">
+                        <div 
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => { setLocalTitle(e.currentTarget.innerText); handleBlur(); }}
+                            className={`text-lg font-bold mb-3 leading-tight ${colors.title} outline-none focus:bg-white/5 rounded px-1 border border-transparent focus:border-white/20`}
+                        >
+                            {slide.title}
+                        </div>
+                        <div 
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => { setLocalContent(e.currentTarget.innerText); handleBlur(); }}
+                            className={`text-xs leading-relaxed ${colors.body} outline-none focus:bg-white/5 rounded px-1 border border-transparent focus:border-white/20`}
+                        >
+                            {slide.content}
+                        </div>
+                    </div>
+                </div>
+            );
 
-      {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-center px-8 z-20 pt-10">
-        <h3 className={`text-xl font-bold mb-4 leading-tight 
-            ${style === VisualStyleType.CLEAN_LIGHT ? 'text-slate-900' : 
-              style === VisualStyleType.NEO_BRUTALISM ? 'text-black' : 'text-white'}`}>
-          {slide.title}
-        </h3>
-        <p className={`text-sm font-body leading-relaxed 
-            ${style === VisualStyleType.CLEAN_LIGHT ? 'text-slate-600' : 
-              style === VisualStyleType.NEO_BRUTALISM ? 'text-gray-900 font-bold' : 'text-gray-300'}`}>
-          {slide.content}
-        </p>
-      </div>
+        case SlideLayoutType.FULL_IMAGE_OVERLAY:
+            return (
+                <div className="h-full w-full relative flex flex-col justify-end p-8 overflow-hidden">
+                    {renderGhostImage('inset-0')}
+                    {!referenceImage && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black opacity-50"></div>
+                    )}
+                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent z-0"></div>
+                     
+                     <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4 opacity-70">
+                             <span className="text-4xl font-black text-white/40">{String(slide.slideNumber).padStart(2, '0')}</span>
+                             <div className="h-[2px] w-12 bg-primary" style={brandBgStyle}></div>
+                        </div>
+                        <div 
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => { setLocalTitle(e.currentTarget.innerText); handleBlur(); }}
+                            className="text-xl font-bold text-white mb-3 shadow-black drop-shadow-lg outline-none focus:border-b border-white/30"
+                        >
+                            {slide.title}
+                        </div>
+                        <div 
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => { setLocalContent(e.currentTarget.innerText); handleBlur(); }}
+                            className="text-sm text-gray-200 font-medium leading-relaxed drop-shadow-md outline-none focus:border-b border-white/30"
+                        >
+                            {slide.content}
+                        </div>
+                     </div>
+                </div>
+            );
 
-      {/* Footer / Prompt Info */}
-      <div className={`absolute bottom-0 left-0 right-0 p-4 z-30 transform translate-y-[85%] group-hover:translate-y-0 transition-transform duration-300 border-t 
-         ${style === VisualStyleType.NEO_BRUTALISM ? 'bg-white border-black border-t-2' : 'bg-black/80 backdrop-blur-xl border-white/10'}`}>
+        case SlideLayoutType.TYPOGRAPHIC_CENTER:
+            return (
+                <div className="h-full w-full p-8 flex flex-col justify-center items-center text-center relative overflow-hidden">
+                    <div className="absolute top-10 left-10 text-9xl opacity-5 font-serif" style={brandStyle}>"</div>
+                    <div className="absolute bottom-10 right-10 text-9xl opacity-5 font-serif rotate-180" style={brandStyle}>"</div>
+                    
+                    <div className="relative z-10">
+                         <span className={`text-sm font-bold tracking-widest uppercase mb-6 block ${colors.number}`}>
+                            Slide {String(slide.slideNumber).padStart(2, '0')}
+                         </span>
+                         <h3 
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => { setLocalTitle(e.currentTarget.innerText); handleBlur(); }}
+                            className={`text-2xl font-black mb-6 leading-tight ${colors.title} outline-none focus:bg-white/5 p-2 rounded`}
+                            style={brandColor && !isInverted ? brandGradientText : {}}
+                         >
+                             {slide.title.toUpperCase()}
+                         </h3>
+                         <div className="w-16 h-1 bg-current opacity-20 mx-auto mb-6 rounded-full" style={brandBgStyle}></div>
+                         <p 
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => { setLocalContent(e.currentTarget.innerText); handleBlur(); }}
+                            className={`text-sm font-medium ${colors.body} max-w-[90%] outline-none focus:bg-white/5 p-1 rounded`}
+                         >
+                             {slide.content}
+                         </p>
+                    </div>
+                </div>
+            );
+
+        default:
+            return (
+                <div className="h-full w-full p-8 flex flex-col relative">
+                     <div className="flex justify-between items-start mb-8">
+                        <span className={`text-4xl font-black ${colors.number}`}>
+                            {String(slide.slideNumber).padStart(2, '0')}
+                        </span>
+                        {referenceImage ? (
+                            <div className="size-16 rounded-full border-2 border-white/10 overflow-hidden relative" style={{borderColor: brandColor}}>
+                                <img src={referenceImage} className="w-full h-full object-cover opacity-80" />
+                            </div>
+                        ) : (
+                             <div className="size-12 rounded-full bg-white/5 flex items-center justify-center">
+                                 <span className="material-symbols-outlined opacity-50" style={brandStyle}>auto_awesome</span>
+                             </div>
+                        )}
+                     </div>
+                     
+                     <div className="mt-auto">
+                        <div 
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => { setLocalTitle(e.currentTarget.innerText); handleBlur(); }}
+                            className={`text-xl font-bold mb-4 ${colors.title} outline-none focus:bg-white/5 rounded px-1`}
+                        >
+                            {slide.title}
+                        </div>
+                        <div 
+                            contentEditable
+                            suppressContentEditableWarning
+                            onBlur={(e) => { setLocalContent(e.currentTarget.innerText); handleBlur(); }}
+                            className={`text-sm ${colors.body} outline-none focus:bg-white/5 rounded px-1`}
+                        >
+                            {slide.content}
+                        </div>
+                     </div>
+                </div>
+            );
+    }
+  };
+
+  const hasPersonRef = slide.imagePrompt.toLowerCase().includes("person") || slide.imagePrompt.toLowerCase().includes("reference") || (referenceImage !== undefined);
+
+  if (isMobileMode) {
+      return (
+          <div className="relative flex-shrink-0 mx-2">
+             <div className="w-[300px] h-[600px] bg-black rounded-[40px] border-[8px] border-slate-800 shadow-2xl overflow-hidden relative">
+                 <div className="absolute top-0 w-full h-8 z-50 flex justify-between px-6 items-center text-[10px] text-white font-bold bg-black/20 backdrop-blur-sm">
+                     <span>9:41</span>
+                     <div className="flex gap-1">
+                        <span className="material-symbols-outlined text-[14px]">signal_cellular_alt</span>
+                        <span className="material-symbols-outlined text-[14px]">wifi</span>
+                        <span className="material-symbols-outlined text-[14px]">battery_full</span>
+                     </div>
+                 </div>
+                 
+                 <div className={`w-full h-full ${getContainerStyle()} relative pt-8 flex flex-col`}>
+                      {renderBackgroundDecor()}
+                      <div className="flex-1 relative">{renderContent()}</div>
+                 </div>
+                 
+                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/30 rounded-full z-50"></div>
+             </div>
+          </div>
+      )
+  }
+
+  return (
+    <div 
+        className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl hover:z-10 ${getContainerStyle()}`}
+        style={isNeonStyle(style) ? neonShadow : {}}
+    >
+      {renderBackgroundDecor()}
+      {renderContent()}
+
+      <div className={`absolute bottom-0 left-0 right-0 p-3 z-30 transform translate-y-[85%] group-hover:translate-y-0 transition-transform duration-300 border-t bg-black/90 backdrop-blur-xl border-white/10`}>
         <div className="flex flex-col gap-1">
             <div className="flex justify-between items-center">
-                <span className={`text-[10px] font-bold uppercase ${hasPersonRef ? 'text-amber-400' : 'text-primary'}`}>
-                    {hasPersonRef ? '✦ Prompt com Personagem' : 'Prompt Visual'}
-                </span>
-                <span className="material-symbols-outlined text-[14px] opacity-50 group-hover:opacity-0 transition-opacity">expand_less</span>
+                <div className="flex items-center gap-2">
+                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${hasPersonRef ? 'bg-amber-500/20 text-amber-400' : 'bg-primary/20 text-primary'}`}>
+                        {slide.layoutSuggestion.split(' ')[0]} 
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-bold truncate max-w-[100px]">{style}</span>
+                </div>
+                <span className="material-symbols-outlined text-[14px] opacity-50 group-hover:opacity-0 transition-opacity text-white">expand_less</span>
             </div>
-            <p className={`text-[10px] font-mono leading-tight ${style === VisualStyleType.NEO_BRUTALISM ? 'text-black' : 'text-slate-300'} ${hasPersonRef ? 'text-amber-100' : ''}`}>
+            <p className="text-[9px] font-mono leading-tight text-slate-400 mt-2 line-clamp-3 hover:line-clamp-none transition-all cursor-text select-text">
                 {slide.imagePrompt}
             </p>
         </div>
       </div>
+      
+      <div className="absolute top-3 right-3 z-40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
+           <button 
+                onClick={cycleLayout}
+                className="bg-black/60 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
+            >
+               <span className="material-symbols-outlined text-[18px]">shuffle</span>
+           </button>
+           
+           <button 
+                onClick={() => setIsInverted(!isInverted)}
+                className="bg-black/60 hover:bg-white hover:text-black text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
+           >
+               <span className="material-symbols-outlined text-[18px]">contrast</span>
+           </button>
+      </div>
+
     </div>
   );
 };

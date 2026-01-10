@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal } from '../types';
+import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal, Slide } from '../types';
 import { generateCarousel, refineCarousel } from '../services/geminiService';
 import SlideCard from './SlideCard';
 import ConfigPanel from './ConfigPanel';
@@ -17,18 +18,29 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
     const [data, setData] = useState<CarouselData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+    const [isMobilePreview, setIsMobilePreview] = useState(false); // New Mobile Preview State
     const resultsEndRef = useRef<HTMLDivElement>(null);
 
     const [config, setConfig] = useState<GenerationConfig>({
         slideCount: 5,
         tone: ToneType.PROFESSIONAL,
         style: VisualStyleType.GRADIENT_TECH,
-        customStylePrompt: '', // Inicializando campo de estilo custom
+        customStylePrompt: '', 
+        brandColor: '#6366f1', 
         goal: CarouselGoal.AUTHORITY,
         inputType: 'topic',
         includePeople: false,
         customTheme: ''
     });
+
+    // Função para atualizar um slide específico (Callback)
+    const handleUpdateSlide = (updatedSlide: Slide) => {
+        if (!data) return;
+        const newSlides = data.slides.map(s => 
+            s.slideNumber === updatedSlide.slideNumber ? updatedSlide : s
+        );
+        setData({ ...data, slides: newSlides });
+    };
 
     const handleGenerate = async () => {
         if (!inputValue.trim()) return;
@@ -244,6 +256,17 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                 {data && <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">Finalizado</span>}
                             </h2>
                             <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                            
+                            {/* NEW: Mobile View Toggle */}
+                            {data && (
+                                <button 
+                                    onClick={() => setIsMobilePreview(!isMobilePreview)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isMobilePreview ? 'bg-white text-black border-white' : 'bg-black/40 text-slate-400 border-white/10 hover:text-white'}`}
+                                >
+                                    <span className="material-symbols-outlined text-[16px]">smartphone</span>
+                                    <span>{isMobilePreview ? 'Sair do Mobile' : 'Ver no Celular'}</span>
+                                </button>
+                            )}
                         </div>
 
                         {error && (
@@ -285,6 +308,9 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                         totalSlides={data.slides.length}
                                         style={config.style}
                                         referenceImage={config.referenceImage}
+                                        brandColor={config.brandColor} 
+                                        onUpdate={handleUpdateSlide} // Passing update handler
+                                        isMobileMode={isMobilePreview} // Passing view mode
                                     />
                                 ))}
                                 <div ref={resultsEndRef} />

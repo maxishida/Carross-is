@@ -5,13 +5,20 @@ export interface Slide {
   content: string;
   visualDescription: string;
   imagePrompt: string;
-  layoutSuggestion: string;
+  layoutSuggestion: SlideLayoutType;
+}
+
+export enum SlideLayoutType {
+    FULL_IMAGE_OVERLAY = 'Imagem Fundo Total',
+    SPLIT_TOP_IMAGE = 'Divisão: Imagem Topo',
+    TYPOGRAPHIC_CENTER = 'Foco Tipográfico',
+    MINIMAL_ICON = 'Minimalista com Ícone'
 }
 
 export interface CarouselData {
   topic: string;
   overview: string;
-  referenceAnalysis?: string; // Novo campo para forçar a IA a descrever o que viu
+  referenceAnalysis?: string;
   slides: Slide[];
 }
 
@@ -21,6 +28,9 @@ export interface CreativeVariation {
   marketingAngle: string; 
   visualPrompt: string;
   colorPaletteSuggestion: string;
+  fontStyle: 'sans' | 'serif' | 'mono' | 'display';
+  layoutMode: 'centered' | 'left-aligned' | 'bold-frame';
+  generatedImage?: string; 
 }
 
 export interface CreativeData {
@@ -31,8 +41,10 @@ export interface CreativeData {
 export interface GenerationConfig {
   slideCount: number;
   tone: ToneType;
-  style: VisualStyleType;
-  customStylePrompt?: string; // Novo campo para prompt visual manual
+  styleCategory: StyleCategory; // NOVO: Categoria macro
+  style: string; // Alterado para string para aceitar a lista dinâmica
+  customStylePrompt?: string; 
+  brandColor?: string; 
   goal: CarouselGoal; 
   inputType: 'topic' | 'content'; 
   customTheme?: string;
@@ -79,8 +91,8 @@ export interface MotionConfig {
 }
 
 export interface MotionResult {
-  script: string; // The director's output
-  videoUri?: string; // The Veo output URI
+  script: string; 
+  videoUri?: string; 
 }
 
 export enum CarouselGoal {
@@ -99,21 +111,27 @@ export enum ToneType {
   CREATIVE = 'Criativo'
 }
 
+// Novas Categorias para organizar a lista gigante
+export enum StyleCategory {
+  COMMERCIAL = 'Comercial & E-commerce',
+  BRANDING = 'Branding & Negócios',
+  SOCIAL = 'Social Media',
+  CREATIVE = 'Criativo & Artístico',
+  NICHE = 'Nichos Específicos',
+  COMMUNICATION = 'Comunicação Visual',
+  LAYOUT = 'Estrutura & Layout',
+  TRENDS = 'Tendências Modernas',
+  ADS = 'Anúncios & Ads',
+  EMOTIONAL = 'Emocional & Conexão'
+}
+
+// Mapeamento dos estilos antigos para compatibilidade, se necessário, mas focaremos nas strings dinâmicas
 export enum VisualStyleType {
-  CUSTOM = 'Personalizado (Prompt)', // Opção adicionada no topo para destaque
+  CUSTOM = 'Personalizado (Prompt)', 
   MINIMAL_DARK = 'Minimalista Dark',
   GRADIENT_TECH = 'Gradiente Tech',
   CLEAN_LIGHT = 'Clean Light',
   NEO_BRUTALISM = 'Neo-Brutalismo',
-  RETRO_FUTURISM = 'Retrô Futurista',
-  WATERCOLOR_MINIMAL = 'Aquarela Minimalista',
-  HAND_DRAWN = 'Hand-Drawn (Sketch)',
-  MAGAZINE = 'Editorial / Revista',
-  STORYBOARD = 'Storyboard / HQs',
-  ICON_GRID = 'Grade de Ícones',
-  QUOTE_CARD = 'Cartões de Citação',
-  THREE_D_ISOMETRIC = '3D Isométrico',
-  THREE_D_CLAYMORPHISM = '3D Claymorphism',
   THREE_D_CARTOON = '3D Cartoon'
 }
 
@@ -133,7 +151,7 @@ export interface HistoryItem {
   topic: string;
   slideCount: number;
   createdAt: string;
-  style: VisualStyleType;
+  style: string;
 }
 
 export interface ChatMessage {
