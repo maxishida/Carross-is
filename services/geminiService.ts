@@ -190,6 +190,90 @@ export const generateSocialImage = async (prompt: string, aspectRatio: '1:1' | '
     }
 }
 
+export interface EditImageOptions {
+    usePro?: boolean;
+    upscale?: boolean;
+}
+
+export const editSocialImage = async (
+    imageBase64: string, 
+    editPrompt: string, 
+    assetBase64?: string,
+    options?: EditImageOptions
+): Promise<string | null> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+    const ai = new GoogleGenAI({ apiKey });
+
+    // MODEL SELECTION LOGIC
+    // 'gemini-3-pro-image-preview' corresponds to "Nano Banana Pro" / High Quality
+    // 'gemini-2.5-flash-image' corresponds to "Flash" / Standard
+    const modelName = options?.usePro || options?.upscale 
+        ? 'gemini-3-pro-image-preview' 
+        : 'gemini-2.5-flash-image';
+
+    // CONFIG LOGIC
+    const config: any = {};
+    if (options?.upscale) {
+        config.imageConfig = {
+            imageSize: '2K' // Only available in Pro model
+        };
+    }
+
+    try {
+        // Strip header if present
+        const cleanBase64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+        
+        const parts: any[] = [
+            { 
+                inlineData: {
+                    mimeType: 'image/png', // Assuming PNG for safety
+                    data: cleanBase64
+                }
+            }
+        ];
+
+        let instruction = `Edit this image. ${editPrompt}. Maintain the original style and composition where possible.`;
+        
+        if (options?.upscale) {
+            instruction += " Upscale to high resolution, 4k highly detailed, sharpen details.";
+        } else {
+             instruction += " High quality.";
+        }
+
+        if (assetBase64) {
+             const cleanAsset = assetBase64.includes(',') ? assetBase64.split(',')[1] : assetBase64;
+             parts.push({
+                 inlineData: {
+                     mimeType: 'image/png',
+                     data: cleanAsset
+                 }
+             });
+             instruction += " Use the second image provided as a reference asset (like a logo or object) to insert into the first image as requested.";
+        }
+
+        parts.push({ text: instruction });
+
+        const response = await ai.models.generateContent({
+            model: modelName,
+            contents: {
+                parts: parts,
+            },
+            config: config
+        });
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error("Error editing social image:", error);
+        return null;
+    }
+}
+
 export const generateMotionConcept = async (config: MotionConfig): Promise<string | null> => {
     const apiKey = getApiKey();
     if (!apiKey) return null;

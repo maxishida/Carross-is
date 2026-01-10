@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CreativeData, GenerationConfig, ToneType, VisualStyleType } from '../types';
-import { generateCreativeVariations, generateSocialImage } from '../services/geminiService';
+import { generateCreativeVariations, generateSocialImage, editSocialImage } from '../services/geminiService';
 import ConfigPanel from './ConfigPanel';
 import * as htmlToImageModule from 'html-to-image';
 import JSZip from 'jszip';
 
 interface CreativeGeneratorViewProps {
     onBack: () => void;
+}
+
+interface PreviewState {
+    id: number;
+    title: string;
+    history: string[]; // Stack of image URLs for Undo functionality
+    currentStep: number;
 }
 
 const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack }) => {
@@ -17,8 +24,15 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
     const [error, setError] = useState<string | null>(null);
     const [generatingImages, setGeneratingImages] = useState<Record<number, boolean>>({});
     
-    // State for Image Preview Modal
-    const [previewData, setPreviewData] = useState<{ url: string; title: string } | null>(null);
+    // State for Image Preview & Edit Modal
+    const [previewData, setPreviewData] = useState<PreviewState | null>(null);
+    const [editPrompt, setEditPrompt] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+    const [uploadedAsset, setUploadedAsset] = useState<string | null>(null);
+    const [isComparing, setIsComparing] = useState(false); 
+    const [useProModel, setUseProModel] = useState(false); // Pro Toggle
+    
+    const assetInputRef = useRef<HTMLInputElement>(null);
 
     const [config, setConfig] = useState<GenerationConfig>({
         slideCount: 1, 
@@ -75,6 +89,98 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
         }
     };
 
+    const handleAssetUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setUploadedAsset(reader.result as string);
+                if (!editPrompt.includes("Use the attached asset")) {
+                     setEditPrompt(prev => prev ? `${prev}. Use the attached asset.` : "Use the attached asset.");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleEditImage = async (isUpscaleRequest = false) => {
+        if (!previewData || (!editPrompt.trim() && !isUpscaleRequest)) return;
+        
+        const currentImageUrl = previewData.history[previewData.currentStep];
+
+        setIsEditing(true);
+        try {
+             const newImageBase64 = await editSocialImage(
+                 currentImageUrl, 
+                 editPrompt, 
+                 uploadedAsset || undefined,
+                 { usePro: useProModel, upscale: isUpscaleRequest }
+             );
+             
+             if (newImageBase64) {
+                 // Update Preview Modal History
+                 setPreviewData(prev => {
+                     if (!prev) return null;
+                     const newHistory = [...prev.history.slice(0, prev.currentStep + 1), newImageBase64];
+                     return {
+                         ...prev,
+                         history: newHistory,
+                         currentStep: newHistory.length - 1
+                     };
+                 });
+                 
+                 // Update Main Grid Data
+                 setData(prevData => {
+                    if (!prevData) return null;
+                    return {
+                        ...prevData,
+                        variations: prevData.variations.map(v => 
+                            v.id === previewData.id ? { ...v, generatedImage: newImageBase64 } : v
+                        )
+                    };
+                });
+                if (!isUpscaleRequest) setEditPrompt(''); 
+             } else {
+                 throw new Error("Falha ao editar a imagem.");
+             }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsEditing(false);
+        }
+    };
+
+    const handleUndo = () => {
+        if (!previewData || previewData.currentStep <= 0) return;
+
+        const prevStep = previewData.currentStep - 1;
+        const prevImage = previewData.history[prevStep];
+
+        setPreviewData(prev => prev ? ({ ...prev, currentStep: prevStep }) : null);
+        
+        // Sync with grid
+        setData(prevData => {
+            if (!prevData) return null;
+            return {
+                ...prevData,
+                variations: prevData.variations.map(v => 
+                    v.id === previewData.id ? { ...v, generatedImage: prevImage } : v
+                )
+            };
+        });
+    };
+    
+    const handleDownloadSingle = () => {
+        if (!previewData) return;
+        const currentImage = previewData.history[previewData.currentStep];
+        const link = document.createElement('a');
+        link.href = currentImage;
+        link.download = `Nano_Edit_${previewData.title.replace(/\s/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handleDownloadAll = async () => {
         if (!data) return;
         setIsDownloading(true);
@@ -95,13 +201,10 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
             }
 
             const promises = Array.from(elements).map(async (element, index) => {
-                // Using skipFonts: true to prevent "Failed to read cssRules" error from cross-origin stylesheets (Google Fonts/Tailwind CDN)
-                // Removing cacheBust to avoid CORS issues with certain resources
                 const options: any = { 
                     pixelRatio: 2,
                     skipFonts: true,
                     filter: (node: any) => {
-                        // Exclude any external link tags that might be inside the card (though rare)
                         return (node.tagName !== 'LINK');
                     }
                 };
@@ -140,7 +243,6 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
         }
     }
 
-    // --- AUTO DESIGN ENGINE: FONTS ---
     const getFontClass = (fontType: string) => {
         switch(fontType) {
             case 'serif': return 'font-serif';
@@ -150,36 +252,223 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
         }
     };
 
+    // Helper to get current displayed image in modal
+    const getModalDisplayImage = () => {
+        if (!previewData) return '';
+        // If Comparing and we have history, show previous step
+        if (isComparing && previewData.currentStep > 0) {
+            return previewData.history[previewData.currentStep - 1];
+        }
+        return previewData.history[previewData.currentStep];
+    }
+
     return (
         <div className="max-w-[1600px] mx-auto flex flex-col gap-6 fade-in h-full relative p-4">
             
-            {/* --- PREVIEW MODAL --- */}
+            {/* --- PREVIEW & EDIT MODAL --- */}
             {previewData && (
                 <div 
-                    className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200"
-                    onClick={() => setPreviewData(null)}
+                    className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => { if(!isEditing) setPreviewData(null); }}
                 >
                     <div 
-                        className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center justify-center"
+                        className="relative max-w-7xl w-full h-[90vh] flex rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-[#020617]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Close Button */}
-                        <button 
-                            onClick={() => setPreviewData(null)}
-                            className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-                        >
-                            <span className="material-symbols-outlined text-2xl">close</span>
-                        </button>
+                        {/* LEFT: IMAGE CANVAS */}
+                        <div className="flex-1 bg-black/50 flex flex-col relative">
+                             {/* Toolbar Top */}
+                             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md rounded-full px-4 py-2 border border-white/10">
+                                 <button 
+                                    onClick={handleUndo}
+                                    disabled={previewData.currentStep === 0 || isEditing}
+                                    className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-30 transition-all tooltip-trigger"
+                                    title="Desfazer"
+                                 >
+                                     <span className="material-symbols-outlined text-lg">undo</span>
+                                 </button>
+                                 <div className="w-px h-4 bg-white/20"></div>
+                                 <button
+                                    onMouseDown={() => setIsComparing(true)}
+                                    onMouseUp={() => setIsComparing(false)}
+                                    onMouseLeave={() => setIsComparing(false)}
+                                    disabled={previewData.currentStep === 0}
+                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all select-none ${isComparing ? 'bg-primary text-white shadow-neon-primary' : 'hover:bg-white/10 text-slate-300 disabled:opacity-30 cursor-pointer'}`}
+                                 >
+                                     {isComparing ? 'Original' : 'Segure para Comparar'}
+                                 </button>
+                                 <div className="w-px h-4 bg-white/20"></div>
+                                 <button 
+                                    onClick={handleDownloadSingle}
+                                    className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                                    title="Baixar esta imagem"
+                                 >
+                                     <span className="material-symbols-outlined text-lg">download</span>
+                                 </button>
+                             </div>
 
-                        <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black">
-                            <img 
-                                src={previewData.url} 
-                                alt={previewData.title}
-                                className="max-h-[80vh] w-auto object-contain"
-                            />
-                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
-                                <h3 className="text-white font-bold text-lg text-center font-display">{previewData.title}</h3>
-                            </div>
+                             <div className="flex-1 flex items-center justify-center p-8 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-opacity-5">
+                                 <img 
+                                    src={getModalDisplayImage()} 
+                                    alt={previewData.title}
+                                    className="max-h-full max-w-full object-contain shadow-2xl rounded-sm transition-all duration-75"
+                                />
+                                {isEditing && (
+                                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-30">
+                                        <div className="relative">
+                                            <div className="size-16 rounded-full border-4 border-white/10 border-t-primary animate-spin"></div>
+                                            <span className="material-symbols-outlined text-3xl text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse">auto_fix_high</span>
+                                        </div>
+                                        <span className="text-white font-bold tracking-widest text-sm animate-pulse">
+                                            {useProModel ? 'APLICANDO NANO PRO (2K)...' : 'APLICANDO MÁGICA...'}
+                                        </span>
+                                    </div>
+                                )}
+                             </div>
+                        </div>
+
+                        {/* RIGHT: EDIT CONTROLS */}
+                        <div className="w-[350px] bg-[#0f172a] border-l border-white/10 flex flex-col">
+                             {/* Header */}
+                             <div className="p-6 border-b border-white/5">
+                                 <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-white font-bold text-lg font-display">Editor Nano AI</h3>
+                                    <button 
+                                        onClick={() => setPreviewData(null)}
+                                        className="text-slate-500 hover:text-white transition-colors"
+                                        disabled={isEditing}
+                                    >
+                                        <span className="material-symbols-outlined">close</span>
+                                    </button>
+                                 </div>
+                                 
+                                 {/* PRO MODE TOGGLE */}
+                                 <div 
+                                    onClick={() => !isEditing && setUseProModel(!useProModel)}
+                                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${useProModel ? 'bg-gradient-to-r from-amber-500/10 to-amber-700/10 border-amber-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                 >
+                                     <div className="flex items-center gap-2">
+                                         <span className={`material-symbols-outlined ${useProModel ? 'text-amber-400' : 'text-slate-400'}`}>diamond</span>
+                                         <div className="flex flex-col">
+                                             <span className={`text-xs font-bold ${useProModel ? 'text-amber-200' : 'text-slate-300'}`}>Modo Pro (Banana)</span>
+                                             <span className="text-[9px] text-slate-500">{useProModel ? 'Alta qualidade, edições complexas' : 'Rápido, edições simples'}</span>
+                                         </div>
+                                     </div>
+                                     <div className={`w-8 h-4 rounded-full relative transition-colors ${useProModel ? 'bg-amber-500' : 'bg-slate-600'}`}>
+                                         <div className={`absolute top-0.5 size-3 bg-white rounded-full transition-transform ${useProModel ? 'left-4.5' : 'left-0.5'}`}></div>
+                                     </div>
+                                 </div>
+                             </div>
+
+                             {/* Edit Form */}
+                             <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+                                 
+                                 {/* Asset Upload Section */}
+                                 <div className="flex flex-col gap-2">
+                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ativo Visual (Logo/Imagem)</label>
+                                     <div 
+                                        onClick={() => assetInputRef.current?.click()}
+                                        className={`border border-dashed rounded-xl p-4 flex items-center justify-center cursor-pointer transition-all relative overflow-hidden group ${uploadedAsset ? 'border-primary bg-primary/5' : 'border-white/20 bg-white/5 hover:bg-white/10'}`}
+                                     >
+                                         {uploadedAsset ? (
+                                             <>
+                                                 <img src={uploadedAsset} className="h-16 w-auto object-contain opacity-90 group-hover:opacity-100 transition-opacity" alt="Asset" />
+                                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                     <span className="text-xs text-white font-bold">Trocar Imagem</span>
+                                                 </div>
+                                                 <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setUploadedAsset(null);
+                                                    }}
+                                                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors z-20"
+                                                 >
+                                                     <span className="material-symbols-outlined text-[14px]">close</span>
+                                                 </button>
+                                             </>
+                                         ) : (
+                                             <div className="flex flex-col items-center gap-1 text-slate-500">
+                                                 <span className="material-symbols-outlined text-xl group-hover:text-primary transition-colors">upload_file</span>
+                                                 <span className="text-[10px] group-hover:text-white transition-colors">Clique para enviar</span>
+                                             </div>
+                                         )}
+                                         <input 
+                                            type="file" 
+                                            ref={assetInputRef} 
+                                            className="hidden" 
+                                            accept="image/*" 
+                                            onChange={handleAssetUpload}
+                                         />
+                                     </div>
+                                 </div>
+
+                                 {/* Chips */}
+                                 <div className="flex flex-col gap-2">
+                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Edições Rápidas</label>
+                                     <div className="flex flex-wrap gap-2">
+                                         {[
+                                             { label: 'Remover Fundo', prompt: 'Remove background, isolate subject on white background' },
+                                             { label: 'Adicionar Pessoa (Realista)', prompt: 'Add a realistic person interacting with the scene, high detail face' },
+                                             { label: 'Inserir Logo (Canto)', prompt: 'Insert the provided logo asset in the top right corner, clear background' },
+                                             { label: 'Fundo Cyberpunk', prompt: 'Change background to a cyberpunk city street with neon lights' },
+                                             { label: 'Iluminação Estúdio', prompt: 'Improve lighting, softbox studio lighting, professional photography' }
+                                         ].map((chip) => (
+                                             <button 
+                                                key={chip.label}
+                                                onClick={() => {
+                                                    setEditPrompt(chip.prompt);
+                                                    if(chip.label.includes("Pessoa") || chip.label.includes("Remover")) {
+                                                        setUseProModel(true); // Auto-enable pro for hard tasks
+                                                    }
+                                                }}
+                                                disabled={isEditing}
+                                                className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-primary/20 hover:border-primary/50 text-[10px] text-slate-300 hover:text-white transition-all text-left"
+                                             >
+                                                 {chip.label}
+                                             </button>
+                                         ))}
+                                     </div>
+                                 </div>
+
+                                 {/* Input */}
+                                 <div className="flex flex-col gap-2">
+                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Prompt de Edição</label>
+                                     <textarea 
+                                        className="w-full h-24 bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-600 focus:border-primary focus:ring-1 focus:ring-primary resize-none transition-all"
+                                        placeholder="Descreva o que deseja alterar na imagem..."
+                                        value={editPrompt}
+                                        onChange={(e) => setEditPrompt(e.target.value)}
+                                        disabled={isEditing}
+                                     />
+                                 </div>
+
+                                 {/* Upscale Button */}
+                                 <button 
+                                    onClick={() => handleEditImage(true)}
+                                    disabled={isEditing}
+                                    className="w-full py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-200 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2"
+                                 >
+                                     <span className="material-symbols-outlined text-[16px]">hd</span>
+                                     ✨ Upscale 2K (Alta Definição)
+                                 </button>
+
+                             </div>
+
+                             {/* Footer Actions */}
+                             <div className="p-6 border-t border-white/5 bg-black/20">
+                                 <button 
+                                    onClick={() => handleEditImage(false)}
+                                    disabled={!editPrompt.trim() || isEditing}
+                                    className="w-full py-3 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                                 >
+                                     {isEditing ? (
+                                         <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                                     ) : (
+                                         <span className="material-symbols-outlined text-[20px] group-hover:rotate-12 transition-transform">auto_fix_high</span>
+                                     )}
+                                     <span>{isEditing ? 'Processando...' : 'Aplicar Edição'}</span>
+                                 </button>
+                             </div>
                         </div>
                     </div>
                 </div>
@@ -324,7 +613,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                             <div className="absolute inset-x-0 top-0 h-1/2 z-20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                                                 <div className="bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/20">
                                                     <span className="material-symbols-outlined text-white text-sm">open_in_full</span>
-                                                    <span className="text-[10px] font-bold text-white uppercase">Visualizar</span>
+                                                    <span className="text-[10px] font-bold text-white uppercase">Visualizar & Editar</span>
                                                 </div>
                                             </div>
                                         )}
@@ -343,7 +632,12 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                             className={`creative-card-export w-full relative bg-slate-900 overflow-hidden ${getAspectRatioClass()} ${item.generatedImage ? 'cursor-pointer' : ''}`}
                                             onClick={() => {
                                                 if(item.generatedImage) {
-                                                    setPreviewData({ url: item.generatedImage, title: item.conceptTitle });
+                                                    setPreviewData({ 
+                                                        id: item.id, 
+                                                        title: item.conceptTitle, 
+                                                        history: [item.generatedImage],
+                                                        currentStep: 0 
+                                                    });
                                                 }
                                             }}
                                         >
