@@ -85,9 +85,22 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         }
     }, []);
 
+    // OPTIMIZED AUTOSAVE: Only save text content, never images, to prevent crashes
     useEffect(() => {
         if (data) {
-            localStorage.setItem('autosave_carousel_data', JSON.stringify(data));
+            try {
+                // Create a lightweight version without heavy base64 images
+                const lightweightData = {
+                    ...data,
+                    slides: data.slides.map(s => ({
+                        ...s,
+                        generatedBackground: undefined // Explicitly remove image data for storage
+                    }))
+                };
+                localStorage.setItem('autosave_carousel_data', JSON.stringify(lightweightData));
+            } catch (e) {
+                console.warn("Autosave failed. Storage might be full.", e);
+            }
         }
     }, [data]);
 
@@ -142,23 +155,29 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
             setData(result);
             
             // STEP 2: Trigger Async Image Generation for backgrounds
+            // NOTE: Using try/catch inside the loop to prevent unhandled promise rejections
             result.slides.forEach(async (slide) => {
-                setGeneratingImages(prev => ({ ...prev, [slide.slideNumber]: true }));
-                
-                const imageBase64 = await generateSocialImage(slide.imagePrompt, config.aspectRatio || '1:1'); // Default portrait for slides usually
-                
-                if (imageBase64) {
-                    setData(prevData => {
-                        if (!prevData) return null;
-                        return {
-                            ...prevData,
-                            slides: prevData.slides.map(s => 
-                                s.slideNumber === slide.slideNumber ? { ...s, generatedBackground: imageBase64 } : s
-                            )
-                        };
-                    });
+                try {
+                    setGeneratingImages(prev => ({ ...prev, [slide.slideNumber]: true }));
+                    
+                    const imageBase64 = await generateSocialImage(slide.imagePrompt, config.aspectRatio || '1:1'); // Default portrait for slides usually
+                    
+                    if (imageBase64) {
+                        setData(prevData => {
+                            if (!prevData) return null;
+                            return {
+                                ...prevData,
+                                slides: prevData.slides.map(s => 
+                                    s.slideNumber === slide.slideNumber ? { ...s, generatedBackground: imageBase64 } : s
+                                )
+                            };
+                        });
+                    }
+                } catch (imgErr) {
+                    console.error(`Erro ao gerar imagem para slide ${slide.slideNumber}:`, imgErr);
+                } finally {
+                    setGeneratingImages(prev => ({ ...prev, [slide.slideNumber]: false }));
                 }
-                setGeneratingImages(prev => ({ ...prev, [slide.slideNumber]: false }));
             });
 
         } catch (err) {

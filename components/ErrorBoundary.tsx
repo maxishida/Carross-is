@@ -1,4 +1,3 @@
-
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
@@ -12,43 +11,46 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null
-  };
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null
+    };
+  }
 
-  public static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  public render() {
+  render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
           return this.props.fallback;
       }
       return (
-        <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center p-8 bg-red-900/10 border border-red-500/20 rounded-2xl text-center">
-          <div className="bg-red-500/20 p-4 rounded-full mb-4">
+        <div className="w-full h-full min-h-[400px] flex flex-col items-center justify-center p-8 bg-[#0f172a] border border-red-500/20 rounded-2xl text-center z-50 relative shadow-2xl">
+          <div className="bg-red-500/20 p-4 rounded-full mb-4 animate-pulse">
               <span className="material-symbols-outlined text-4xl text-red-400">bug_report</span>
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Ops! Algo deu errado.</h2>
+          <h2 className="text-xl font-bold text-white mb-2">Ops! Ocorreu um erro visual.</h2>
           <p className="text-slate-400 text-sm mb-6 max-w-md">
-            Ocorreu um erro ao renderizar este componente. Isso pode acontecer devido a falhas na geração de imagem ou dados corrompidos.
+            Ocorreu um erro ao renderizar este componente. Isso geralmente acontece devido a problemas de memória com imagens pesadas ou falha na resposta da IA.
           </p>
-          <div className="bg-black/30 p-4 rounded-lg border border-white/5 w-full max-w-lg mb-6 overflow-auto max-h-32 text-left">
-              <code className="text-[10px] font-mono text-red-300">
-                  {this.state.error?.message || "Erro desconhecido"}
+          <div className="bg-black/50 p-4 rounded-lg border border-white/10 w-full max-w-lg mb-6 overflow-auto max-h-32 text-left shadow-inner">
+              <code className="text-[10px] font-mono text-red-300 break-all">
+                  {this.state.error?.message || "Erro desconhecido de renderização"}
               </code>
           </div>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-bold text-sm transition-all"
+            className="px-6 py-2.5 bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20"
           >
-            Tentar Novamente
+            Tentar Restaurar
           </button>
         </div>
       );
