@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
-import { chatWithAssistant } from '../services/geminiService';
+import { chatWithAssistant, generateAndPlaySpeech } from '../services/geminiService';
 
 interface AssistantChatProps {
     isOpen: boolean;
@@ -19,6 +20,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ isOpen, onClose, onApplyI
         }
     ]);
     const [isTyping, setIsTyping] = useState(false);
+    const [speakingId, setSpeakingId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -60,6 +62,18 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ isOpen, onClose, onApplyI
 
         setMessages(prev => [...prev, modelMsg]);
         setIsTyping(false);
+    };
+
+    const handleSpeak = async (id: string, text: string) => {
+        if (speakingId) return; // Prevent double click
+        setSpeakingId(id);
+        try {
+            await generateAndPlaySpeech(text);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSpeakingId(null);
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -112,14 +126,24 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ isOpen, onClose, onApplyI
                             {msg.text}
                         </div>
                         {msg.role === 'model' && (
-                            <button 
-                                onClick={() => onApplyIdea(msg.text)} 
-                                className="text-[10px] text-primary hover:underline flex items-center gap-1 pl-1 opacity-0 hover:opacity-100 transition-opacity"
-                                title="Copiar para o campo de tópico"
-                            >
-                                <span className="material-symbols-outlined text-[10px]">content_copy</span>
-                                Copiar ideia
-                            </button>
+                            <div className="flex items-center gap-2 pl-1 opacity-0 hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={() => onApplyIdea(msg.text)} 
+                                    className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                                    title="Copiar para o campo de tópico"
+                                >
+                                    <span className="material-symbols-outlined text-[10px]">content_copy</span>
+                                    Copiar
+                                </button>
+                                <button 
+                                    onClick={() => handleSpeak(msg.id, msg.text)}
+                                    disabled={!!speakingId}
+                                    className={`text-[10px] flex items-center gap-1 transition-colors ${speakingId === msg.id ? 'text-green-400 animate-pulse' : 'text-slate-400 hover:text-white'}`}
+                                    title="Ouvir resposta (TTS)"
+                                >
+                                    <span className="material-symbols-outlined text-[12px]">{speakingId === msg.id ? 'graphic_eq' : 'volume_up'}</span>
+                                </button>
+                            </div>
                         )}
                     </div>
                 ))}

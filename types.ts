@@ -6,7 +6,7 @@ export interface Slide {
   visualDescription: string;
   imagePrompt: string;
   layoutSuggestion: SlideLayoutType;
-  generatedBackground?: string; // NOVO: Armazena a imagem gerada para o fundo
+  generatedBackground?: string;
 }
 
 export enum SlideLayoutType {
@@ -33,10 +33,11 @@ export interface CreativeVariation {
   fontStyle: 'sans' | 'serif' | 'mono' | 'display';
   layoutMode: 'centered' | 'left-aligned' | 'bold-frame';
   generatedImage?: string; 
-  // NEW: Support for product overlay
   isProductVariation?: boolean;
-  // NEW: Support for generated video
   generatedVideo?: string;
+  predictionScore: number;
+  predictionLabel: 'Viral' | 'High' | 'Medium' | 'Low';
+  predictionReason: string;
 }
 
 export interface CreativeData {
@@ -52,7 +53,7 @@ export interface GenerationConfig {
   customStylePrompt?: string; 
   brandColor?: string; 
   goal: CarouselGoal; 
-  inputType: 'topic' | 'content' | 'product'; // Added 'product'
+  inputType: 'topic' | 'content' | 'product';
   customTheme?: string;
   includePeople: boolean;
   referenceImage?: string;
@@ -60,53 +61,75 @@ export interface GenerationConfig {
   aspectRatio?: '1:1' | '9:16' | '16:9';
   layoutMode?: string; 
   audience?: string;
-  // NEW: E-commerce fields
   productUrl?: string;
   productImageUrl?: string;
   productName?: string;
-  // NEW: Brand Voice Cloning
   brandVoiceSample?: string;
 }
 
 // --- MOTION / VEO TYPES ---
 
-export enum MotionType {
-  TEXT_ONLY = 'motion_text_only',
-  IMAGE_ONLY = 'image_motion_only',
-  MIXED = 'mixed_motion'
+export enum MotionMode {
+  STUDIO = 'Chat Studio',
+  MAPS = 'Geo Maps',
+  DATA = 'Data Motion',
+  TYPOGRAPHY = 'Kinetic Typo', // NEW
+  TEMPLATES = 'Templates'
 }
 
 export enum MotionStyle {
-  SMOOTH = 'Smooth (Suave)',
-  FAST_PUNCHY = 'Fast & Punchy (Rápido)',
-  CINEMATIC = 'Cinematic (Cinematográfico)',
-  MINIMAL = 'Minimal (Minimalista)',
-  LUXURY = 'Luxury (Luxuoso)',
-  DRAMATIC = 'Dramatic (Dramático)',
-  SLOW_MOTION = 'Slow Motion (Câmera Lenta)',
-  GLITCH = 'Glitch / Cyberpunk',
-  WIPE = 'Wipe Transition (Transição)'
+  HERA_EVOLUTION = 'Hera Evolution (Fluido/Cinematic)', // NEW
+  KINETIC_TYPO = 'Kinetic Typography (Apple Style)', // NEW
+  CINEMATIC = 'Cinematic Standard',
+  PHOTOREALISTIC = 'Photorealistic',
+  ANIMATED_3D = '3D Animation',
+  CYBERPUNK = 'Cyberpunk/Glitch',
+  MINIMALIST = 'Clean/Minimalist',
+  VINTAGE = 'Vintage/Film Grain',
+  DRONE = 'Drone/Aerial',
+  MACRO = 'Macro/Close-up',
+  INFOGRAPHIC = 'Infographic/Corporate', 
+  SATELLITE = 'Satellite/Google Earth'   
 }
 
 export enum MotionVisualTheme {
   DARK = 'Dark Mode',
-  CLEAN_LIGHT = 'Clean Light',
-  TECH_GRADIENT = 'Tech Gradient',
-  BRUTALIST = 'Brutalist',
-  NEON_GLASS = 'Neon Glass'
+  LIGHT = 'Light Mode',
+  NEON = 'Neon',
+  NATURE = 'Nature',
+  CORPORATE = 'Corporate',
+  ABSTRACT = 'Abstract'
 }
+
+export type MotionAspectRatio = '16:9' | '9:16';
 
 export interface MotionConfig {
+  mode: MotionMode;
   topic: string;
-  type: MotionType;
   style: MotionStyle;
   visualTheme: MotionVisualTheme;
-  platform: 'Instagram' | 'LinkedIn' | 'Ads';
+  aspectRatio: MotionAspectRatio;
+  fps: '30' | '60';
+  resolution: '1080p' | '4K';
+  // Map Specifics
+  mapStart?: string;
+  mapEnd?: string;
+  mapStyle?: 'Satellite' | 'Vector' | '3D Relief';
+  mapDataExplosion?: boolean; // NEW: Controls the specific VFX
+  // Data Specifics
+  chartType?: 'Bar' | 'Line' | 'Pie' | 'Floating UI';
+  chartData?: string;
+  // Typography Specifics
+  typoText?: string;
 }
 
-export interface MotionResult {
-  script: string; 
-  videoUri?: string; 
+export interface MotionChatMessage {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: number;
+    videoUri?: string; // If the message resulted in a video
+    attachment?: string; // Base64 image
 }
 
 export enum CarouselGoal {
@@ -173,7 +196,6 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-// NEW: Toast Notification Type
 export interface ToastNotification {
     id: string;
     type: 'success' | 'error' | 'info' | 'loading';

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal, Slide, StyleCategory } from '../types';
-import { generateCarousel, refineCarousel, generateSocialImage, editSocialImage, researchTopic } from '../services/geminiService';
+import { generateCarousel, refineCarousel, generateSocialImage, editSocialImage, researchTopic, generateAndPlaySpeech } from '../services/geminiService';
 import SlideCard from './SlideCard';
 import ConfigPanel from './ConfigPanel';
 import AssistantChat from './AssistantChat';
@@ -45,6 +45,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const [isMobilePreview, setIsMobilePreview] = useState(false);
     const [isZenMode, setIsZenMode] = useState(false); // ZEN MODE STATE
+    const [isSpeakingInput, setIsSpeakingInput] = useState(false); // TTS State
     
     const [generatingImages, setGeneratingImages] = useState<Record<number, boolean>>({});
     
@@ -115,6 +116,15 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         setData({ ...data, slides: newSlides });
     };
 
+    const handleSpeakInput = async () => {
+        if (!inputValue.trim() || isSpeakingInput) return;
+        setIsSpeakingInput(true);
+        try {
+            await generateAndPlaySpeech(inputValue);
+        } catch(e) { console.error(e); }
+        finally { setIsSpeakingInput(false); }
+    }
+
     // --- REORDERING LOGIC ---
     const handleMoveSlide = (index: number, direction: 'left' | 'right') => {
         if (!data) return;
@@ -131,6 +141,33 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         newSlides.forEach((s, i) => s.slideNumber = i + 1);
         
         setData({...data, slides: newSlides});
+    };
+    
+    // --- SINGLE SLIDE IMAGE REGENERATION ---
+    const handleRegenerateSingleImage = async (slideNumber: number) => {
+        if (!data) return;
+        
+        const slide = data.slides.find(s => s.slideNumber === slideNumber);
+        if (!slide) return;
+
+        setGeneratingImages(prev => ({ ...prev, [slideNumber]: true }));
+        
+        try {
+            // Append a small variation instruction to force a new seed/look
+            const promptWithVariation = `${slide.imagePrompt}, distinct variation, alternative composition, different angle`;
+            const newImage = await generateSocialImage(promptWithVariation, config.aspectRatio || '1:1');
+            
+            if (newImage) {
+                handleUpdateSlide({
+                    ...slide,
+                    generatedBackground: newImage
+                });
+            }
+        } catch (e) {
+            console.error(`Falha ao regenerar slide ${slideNumber}`, e);
+        } finally {
+            setGeneratingImages(prev => ({ ...prev, [slideNumber]: false }));
+        }
     };
 
     const handleGenerate = async () => {
@@ -665,6 +702,16 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                     />
                                 )}
                                 
+                                {/* TTS INPUT BUTTON */}
+                                <button 
+                                    onClick={handleSpeakInput}
+                                    disabled={!inputValue.trim() || isSpeakingInput}
+                                    className={`absolute bottom-3 left-3 p-1.5 rounded-full hover:bg-white/10 transition-colors ${isSpeakingInput ? 'text-green-400 animate-pulse' : 'text-slate-500 hover:text-white'}`}
+                                    title="Ouvir texto (TTS)"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">volume_up</span>
+                                </button>
+
                                 <div className="absolute bottom-3 right-3 flex gap-2">
                                     <button 
                                         onClick={() => setInputValue('')}
@@ -824,6 +871,10 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                             isMobileMode={isMobilePreview}
                                             onMoveLeft={() => handleMoveSlide(index, 'left')}
                                             onMoveRight={() => handleMoveSlide(index, 'right')}
+                                            tone={config.tone}
+                                            brandVoice={config.brandVoiceSample}
+                                            onRegenerateImage={() => handleRegenerateSingleImage(slide.slideNumber)}
+                                            isRegenerating={generatingImages[slide.slideNumber]}
                                         />
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-50 flex items-center justify-center pointer-events-none rounded-xl">
                                             <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 rounded-full flex items-center gap-2">

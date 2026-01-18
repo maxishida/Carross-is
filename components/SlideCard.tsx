@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Slide, VisualStyleType, SlideLayoutType } from '../types';
 import FloatingFormatToolbar from './FloatingFormatToolbar';
-import { rewriteSlideContent } from '../services/geminiService';
+import { rewriteSlideContent, generateAndPlaySpeech } from '../services/geminiService';
 
 interface SlideCardProps {
   slide: Slide;
@@ -15,15 +15,20 @@ interface SlideCardProps {
   id?: string; 
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
+  tone: string;
+  brandVoice?: string;
+  onRegenerateImage?: () => void; // NEW PROP
+  isRegenerating?: boolean; // NEW PROP
 }
 
-const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, referenceImage, brandColor, onUpdate, isMobileMode, id, onMoveLeft, onMoveRight }) => {
+const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, referenceImage, brandColor, onUpdate, isMobileMode, id, onMoveLeft, onMoveRight, tone, brandVoice, onRegenerateImage, isRegenerating }) => {
   const [localTitle, setLocalTitle] = useState(slide.title);
   const [localContent, setLocalContent] = useState(slide.content);
   const [isInverted, setIsInverted] = useState(false); 
   const [isFocused, setIsFocused] = useState(false);
   const [isRewriting, setIsRewriting] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Sync props to local state if external update happens
   useEffect(() => {
@@ -48,8 +53,8 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
       setIsRewriting(true);
       
       try {
-        const newTitle = await rewriteSlideContent(localTitle, "Torne mais curto e impactante (título)");
-        const newContent = await rewriteSlideContent(localContent, "Torne mais persuasivo e direto (corpo)");
+        const newTitle = await rewriteSlideContent(localTitle, tone, brandVoice);
+        const newContent = await rewriteSlideContent(localContent, tone, brandVoice);
         
         if (newTitle) setLocalTitle(newTitle);
         if (newContent) setLocalContent(newContent);
@@ -65,6 +70,22 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
           setIsRewriting(false);
       }
   };
+
+  const handleSpeak = async () => {
+      if (isSpeaking) return;
+      setIsSpeaking(true);
+      try {
+          // Remove HTML tags for clean reading
+          const cleanTitle = localTitle.replace(/<[^>]*>?/gm, '');
+          const cleanContent = localContent.replace(/<[^>]*>?/gm, '');
+          const textToRead = `${cleanTitle}. ${cleanContent}`;
+          await generateAndPlaySpeech(textToRead);
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsSpeaking(false);
+      }
+  }
 
   const cycleLayout = () => {
       const layouts = Object.values(SlideLayoutType);
@@ -378,12 +399,38 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                 )}
             </div>
 
+            {/* REGENERATE IMAGE BUTTON */}
+            {onRegenerateImage && (
+                 <button 
+                    onClick={(e) => { e.stopPropagation(); onRegenerateImage(); }}
+                    disabled={isRegenerating}
+                    className="bg-black/60 hover:bg-white hover:text-black text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative disabled:opacity-50 disabled:cursor-wait"
+                    title="Regenerar Fundo (Variação)"
+                >
+                    <span className={`material-symbols-outlined text-[18px] ${isRegenerating ? 'animate-spin' : ''}`}>
+                        {isRegenerating ? 'sync' : 'refresh'}
+                    </span>
+                </button>
+            )}
+
+            {/* TTS BUTTON (NEW) */}
+            <button 
+                    onClick={(e) => { e.stopPropagation(); handleSpeak(); }}
+                    disabled={isSpeaking}
+                    className="bg-black/60 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative disabled:opacity-50"
+                    title="Ouvir Slide (TTS)"
+            >
+                <span className={`material-symbols-outlined text-[18px] ${isSpeaking ? 'animate-pulse text-green-400' : ''}`}>
+                    volume_up
+                </span>
+            </button>
+
             {/* MAGIC REWRITE BUTTON */}
             <button 
                     onClick={(e) => { e.stopPropagation(); handleMagicRewrite(); }}
                     disabled={isRewriting}
                     className="bg-primary/80 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative disabled:opacity-50 disabled:cursor-wait"
-                    title="Reescrever com Mágica"
+                    title="Reescrever com Mágica (Conciso e Impactante)"
             >
                 <span className={`material-symbols-outlined text-[18px] ${isRewriting ? 'animate-spin' : ''}`}>
                     {isRewriting ? 'autorenew' : 'magic_button'}

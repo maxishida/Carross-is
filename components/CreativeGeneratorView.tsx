@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CreativeData, GenerationConfig, ToneType, VisualStyleType, StyleCategory, CarouselGoal } from '../types';
 import { generateCreativeVariations, generateSocialImage, editSocialImage, researchTopic, generateVeoFromImage } from '../services/geminiService';
 import ConfigPanel from './ConfigPanel';
@@ -38,6 +38,9 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
     const [motionPrompt, setMotionPrompt] = useState('');
     const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
     const [hasApiKey, setHasApiKey] = useState(false);
+    
+    // NEW: Sorting State
+    const [sortBy, setSortBy] = useState<'default' | 'score'>('default');
 
     const assetInputRef = useRef<HTMLInputElement>(null);
     const productInputRef = useRef<HTMLInputElement>(null); // New ref for product image
@@ -382,6 +385,28 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
         }
         return previewData.history[previewData.currentStep];
     }
+    
+    // NEW: Helper for Score Color
+    const getScoreColor = (score: number) => {
+        if (score >= 80) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+        if (score >= 60) return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30';
+        return 'text-red-400 bg-red-500/10 border-red-500/30';
+    };
+
+    // Calculate highest score for Winner Badge
+    const highestScore = useMemo(() => {
+        if (!data?.variations?.length) return 0;
+        return Math.max(...data.variations.map(v => v.predictionScore));
+    }, [data]);
+
+    // Sorting Logic
+    const sortedVariations = useMemo(() => {
+        if (!data?.variations) return [];
+        if (sortBy === 'score') {
+            return [...data.variations].sort((a, b) => b.predictionScore - a.predictionScore);
+        }
+        return data.variations;
+    }, [data, sortBy]);
 
     return (
         <div className="max-w-[1600px] mx-auto flex flex-col gap-6 fade-in h-full relative p-4">
@@ -858,29 +883,56 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                     {config.inputType === 'product' ? '6 Cenários de Produto' : '6 Variações Geradas'}
                                 </h3>
                                 
-                                <button 
-                                    onClick={handleDownloadAll}
-                                    disabled={isDownloading}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-lg font-bold text-sm shadow-lg shadow-emerald-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isDownloading ? (
-                                        <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
-                                    ) : (
-                                        <span className="material-symbols-outlined text-[20px]">download_for_offline</span>
-                                    )}
-                                    <span>Download Completo (ZIP)</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {/* SORTING TOGGLE */}
+                                    <button 
+                                        onClick={() => setSortBy(prev => prev === 'default' ? 'score' : 'default')}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-all border ${sortBy === 'score' ? 'bg-primary text-white border-primary shadow-neon-primary' : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">sort</span>
+                                        {sortBy === 'score' ? 'Ordenado: Score AI' : 'Ordenar por Performance'}
+                                    </button>
+
+                                    <button 
+                                        onClick={handleDownloadAll}
+                                        disabled={isDownloading}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-lg font-bold text-sm shadow-lg shadow-emerald-900/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isDownloading ? (
+                                            <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                                        ) : (
+                                            <span className="material-symbols-outlined text-[20px]">download_for_offline</span>
+                                        )}
+                                        <span>Download (ZIP)</span>
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {data.variations.map((item) => (
-                                    <div key={item.id} className="group relative flex flex-col bg-[#0f172a] border border-slate-800 hover:border-primary/50 rounded-2xl overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/10">
+                                {sortedVariations.map((item) => (
+                                    <div 
+                                        key={item.id} 
+                                        className={`group relative flex flex-col bg-[#0f172a] border rounded-2xl overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/10
+                                            ${item.predictionScore === highestScore && sortBy === 'score' ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]' : 'border-slate-800 hover:border-primary/50'}
+                                        `}
+                                    >
                                         
                                         {/* HEADER TAG */}
-                                        <div className="absolute top-4 left-4 z-20 pointer-events-none">
-                                            <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded border border-white/20 uppercase tracking-wider">
-                                                VARIAÇÃO #{item.id}
-                                            </span>
+                                        <div className="absolute top-4 left-4 z-20 pointer-events-none flex flex-wrap items-center gap-2 max-w-[90%]">
+                                            {/* AI SCORE BADGE */}
+                                            {item.predictionScore && (
+                                                <span className={`backdrop-blur-md text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wider flex items-center gap-1 shadow-lg ${getScoreColor(item.predictionScore)}`}>
+                                                    <span className="material-symbols-outlined text-[10px]">auto_graph</span>
+                                                    {item.predictionScore}% {item.predictionLabel}
+                                                </span>
+                                            )}
+                                            {/* WINNER CROWN (If highest) */}
+                                            {item.predictionScore === highestScore && (
+                                                <span className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded shadow-lg shadow-yellow-500/40 animate-pulse flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[10px]">emoji_events</span>
+                                                    WINNER
+                                                </span>
+                                            )}
                                         </div>
                                         
                                         {/* EXPAND/PREVIEW INDICATOR (HOVER) */}
@@ -981,11 +1033,37 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                         </div>
 
                                         {/* INFO BODY */}
-                                        <div className="p-5 flex flex-col gap-4 bg-[#0f172a]">
+                                        <div className="p-5 flex flex-col gap-4 bg-[#0f172a] relative">
+                                            {/* AI Prediction Section */}
+                                            {item.predictionReason && (
+                                                <div className="bg-black/30 p-3 rounded-lg border border-white/5 relative overflow-hidden group/score">
+                                                     <div className="flex items-center gap-2 mb-2">
+                                                        <span className="material-symbols-outlined text-xs text-primary">psychology</span>
+                                                        <span className="text-[10px] font-bold text-white uppercase tracking-wider">Potencial de CTR</span>
+                                                        <span className="ml-auto text-[10px] font-mono text-primary">{item.predictionScore}/100</span>
+                                                    </div>
+                                                    
+                                                    {/* SCORE BAR VISUALIZATION */}
+                                                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
+                                                        <div 
+                                                            className={`h-full rounded-full transition-all duration-1000 ${
+                                                                item.predictionScore >= 80 ? 'bg-emerald-500' : 
+                                                                item.predictionScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                                                            }`}
+                                                            style={{ width: `${item.predictionScore}%` }}
+                                                        ></div>
+                                                    </div>
+
+                                                    <p className="text-[10px] text-slate-400 leading-relaxed italic border-l-2 border-white/10 pl-2">
+                                                        "{item.predictionReason}"
+                                                    </p>
+                                                </div>
+                                            )}
+
                                             {/* Marketing Angle */}
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1.5">
-                                                    <span className="material-symbols-outlined text-purple-400 text-sm">psychology</span>
+                                                    <span className="material-symbols-outlined text-purple-400 text-sm">lightbulb</span>
                                                     <span className="text-xs font-bold text-purple-300">Ângulo de Marketing</span>
                                                 </div>
                                                 <p className="text-xs text-slate-400 leading-relaxed font-medium">

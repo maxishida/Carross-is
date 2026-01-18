@@ -85,16 +85,25 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
               const kit = JSON.parse(savedKit);
               setConfig(prev => ({
                   ...prev,
+                  // Brand Identity
                   brandColor: kit.brandColor || prev.brandColor,
+                  brandVoiceSample: kit.brandVoiceSample || prev.brandVoiceSample,
+                  
+                  // Strategy
+                  goal: kit.goal || prev.goal,
+                  audience: kit.audience || prev.audience,
+                  tone: kit.tone || prev.tone,
+                  
+                  // Visuals
                   styleCategory: kit.styleCategory || prev.styleCategory,
                   style: kit.style || prev.style,
-                  tone: kit.tone || prev.tone,
-                  audience: kit.audience || prev.audience,
-                  brandVoiceSample: kit.brandVoiceSample || prev.brandVoiceSample
+                  aspectRatio: kit.aspectRatio || prev.aspectRatio,
+                  includePeople: kit.includePeople ?? prev.includePeople,
+                  characterStyle: kit.characterStyle || prev.characterStyle,
               }));
-          } catch(e) { console.error(e); }
+          } catch(e) { console.error("Erro ao carregar configurações salvas", e); }
       } else {
-          // Default init
+          // Default init if no save found
           if (!config.styleCategory) {
               setConfig(prev => ({ ...prev, styleCategory: StyleCategory.COMMERCIAL, style: STYLES_BY_CATEGORY[StyleCategory.COMMERCIAL][0] }));
           }
@@ -112,10 +121,33 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
           style: config.style,
           tone: config.tone,
           audience: config.audience,
-          brandVoiceSample: config.brandVoiceSample
+          brandVoiceSample: config.brandVoiceSample,
+          goal: config.goal,
+          aspectRatio: config.aspectRatio,
+          includePeople: config.includePeople,
+          characterStyle: config.characterStyle
       };
       localStorage.setItem('user_brand_kit', JSON.stringify(kitToSave));
-  }, [config.brandColor, config.styleCategory, config.style, config.tone, config.audience, config.brandVoiceSample, loadedDefaults]);
+  }, [
+      config.brandColor, 
+      config.styleCategory, 
+      config.style, 
+      config.tone, 
+      config.audience, 
+      config.brandVoiceSample, 
+      config.goal,
+      config.aspectRatio,
+      config.includePeople,
+      config.characterStyle,
+      loadedDefaults
+  ]);
+
+  const handleResetDefaults = () => {
+      if(confirm("Deseja apagar suas preferências salvas e voltar ao padrão?")) {
+          localStorage.removeItem('user_brand_kit');
+          window.location.reload();
+      }
+  };
 
 
   const handleToneChange = (tone: ToneType) => {
@@ -188,16 +220,35 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
     <div className="bg-[#050511] lg:rounded-2xl border border-white/10 flex flex-col gap-6 p-6 h-fit lg:sticky top-6">
       
       {/* Header */}
-      <div className="flex items-center gap-2 pb-4 border-b border-white/10">
-        <span className="material-symbols-outlined text-primary text-xl">tune</span>
-        <h3 className="font-bold text-lg text-white font-display">Ultra Configuração</h3>
+      <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-xl">tune</span>
+            <h3 className="font-bold text-lg text-white font-display">Ultra Configuração</h3>
+        </div>
+        
+        {/* Reset Button */}
+        <button 
+            onClick={handleResetDefaults}
+            className="text-slate-500 hover:text-red-400 transition-colors tooltip-trigger"
+            title="Resetar Padrões e Limpar Cache"
+        >
+            <span className="material-symbols-outlined text-[18px]">restart_alt</span>
+        </button>
       </div>
 
       {/* Goal Selector */}
       <div className="flex flex-col gap-2">
-         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Objetivo do Carrossel (Copywriting)
-         </label>
+         <div className="flex justify-between items-center">
+             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Objetivo do Carrossel
+             </label>
+             {loadedDefaults && (
+                 <span className="text-[9px] text-green-500/80 flex items-center gap-1">
+                     <span className="material-symbols-outlined text-[10px]">save</span>
+                     Auto-save
+                 </span>
+             )}
+         </div>
          <div className="relative">
             <select 
                 className="w-full p-3 pl-10 text-xs text-white bg-[#0f172a] border border-white/10 rounded-xl focus:ring-primary focus:border-primary appearance-none font-medium transition-colors"
