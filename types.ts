@@ -115,12 +115,15 @@ export interface MotionConfig {
   mapStart?: string;
   mapEnd?: string;
   mapStyle?: 'Satellite' | 'Vector' | '3D Relief';
-  mapDataExplosion?: boolean; // NEW: Controls the specific VFX
+  mapDataExplosion?: boolean;
   // Data Specifics
   chartType?: 'Bar' | 'Line' | 'Pie' | 'Floating UI';
   chartData?: string;
   // Typography Specifics
   typoText?: string;
+  // Intelligence Features (NEW)
+  useThinking?: boolean;
+  useGrounding?: 'none' | 'googleSearch' | 'googleMaps';
 }
 
 export interface MotionChatMessage {
@@ -129,7 +132,8 @@ export interface MotionChatMessage {
     content: string;
     timestamp: number;
     videoUri?: string; // If the message resulted in a video
-    attachment?: string; // Base64 image
+    attachment?: string; // Base64 image or video
+    attachmentType?: 'image' | 'video'; // NEW
 }
 
 export enum CarouselGoal {

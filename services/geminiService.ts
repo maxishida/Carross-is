@@ -240,7 +240,7 @@ export const generateAndPlaySpeech = async (text: string): Promise<void> => {
 
 // --- NEW MOTION FUNCTIONS & PROMPT ENGINEERING ---
 
-// 1. GEO MAPS PROMPT BUILDER (Updated for Data Explosion)
+// 1. GEO MAPS PROMPT BUILDER
 export const generateMapPrompt = (start: string, end: string, style: string, isExplosion: boolean): string => {
     let prompt = `
     Cinematic top-down 3D Map sequence.
@@ -278,7 +278,7 @@ export const generateDataPrompt = (chartType: string, dataDescription: string, t
     `;
 };
 
-// 3. TYPOGRAPHY PROMPT BUILDER (NEW)
+// 3. TYPOGRAPHY PROMPT BUILDER
 export const generateTypographyPrompt = (text: string): string => {
     return `
     Kinetic Typography Animation.
@@ -289,44 +289,82 @@ export const generateTypographyPrompt = (text: string): string => {
     `;
 };
 
-// 4. CHAT REFINEMENT AGENT (UPDATED PERSONA - HERA EVOLUTION)
-export const refineMotionChat = async (history: {role: string, content: string, attachment?: string}[]): Promise<string> => {
+// 4. VISUAL UNDERSTANDING (VIDEO & IMAGE)
+export const analyzeVisualContent = async (base64Data: string, mimeType: string): Promise<string> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return "API Key missing";
+    const ai = new GoogleGenAI({ apiKey });
+    const cleanBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-pro-preview", // Best for visual understanding
+            contents: {
+                parts: [
+                    { inlineData: { mimeType: mimeType, data: cleanBase64 } },
+                    { text: "Analyze this content in extreme detail for a motion graphics director. Identify the subject, lighting, colors, movement (if video), and key elements that can be animated. Be concise but technical." }
+                ]
+            }
+        });
+        return response.text || "Analysis failed.";
+    } catch (e) {
+        console.error("Visual Analysis Error", e);
+        return "Could not analyze the visual content.";
+    }
+};
+
+// 5. CHAT REFINEMENT AGENT (THE "ROUTER")
+export const refineMotionChat = async (
+    history: {role: string, content: string, attachment?: string, attachmentType?: 'image'|'video'}[],
+    config?: MotionConfig
+): Promise<string> => {
     const apiKey = getApiKey();
     if (!apiKey) return "";
     const ai = new GoogleGenAI({ apiKey });
 
-    const systemPrompt = `
-    ATUE COMO: "Motion Director AI", especialista em Motion Design (Estilo "Hera Video" + Veo 3.1).
-    
-    MISSÃO: Criar prompts de vídeo cinematográficos que combinem dados reais com estética de alta fidelidade.
-    
-    ESTILO "HERA EVOLUTION":
-    1. Fluidez: Use "Easy-ease", "Smooth curves", "60fps".
-    2. Câmera: "Parallax", "Orbital Drone", "Speed Ramps".
-    3. Dados: "Data Overlays", "Neon Pins", "Holographic Charts".
-    
-    REGRA DO MAPA (MCP SIMULATION):
-    - Se o usuário pedir "Mapa", assuma que você tem acesso aos dados de satélite 3D.
-    - Crie o prompt como: "Satellite view of [Location], 45-degree angle, 3D terrain...".
-    - Se pedir "Explosão", adicione: "Neon pins shooting up, expanding into holographic charts".
-    
-    SEU FLUXO:
-    - Analise imagens anexadas para extrair paleta de cores e composição.
-    - Refine prompts simples: "Mapa de SP" -> "Cinematic 3D satellite orbit over Sao Paulo, golden hour, neon data lines overlay, 8k".
-    
-    SAÍDA: Apenas o prompt técnico em Inglês.
+    // --- INTELLIGENCE ROUTER ---
+    let model = "gemini-3-flash-preview"; // Default fast
+    let tools: any[] | undefined = undefined;
+    let thinkingConfig: any | undefined = undefined;
+    let systemInstruction = `
+    ATUE COMO: "Motion Director AI", especialista em Motion Design e Vídeo (Veo 3.1).
+    MISSÃO: Criar prompts de vídeo cinematográficos.
+    ESTILO: "Hera Evolution" (Fluido, Parallax, Dados Neon).
+    OUTPUT: Apenas o prompt técnico em Inglês.
     `;
 
-    // Process history to handle attachments
+    // 1. Thinking Mode (Deep Reasoning)
+    if (config?.useThinking) {
+        model = "gemini-3-pro-preview";
+        thinkingConfig = { thinkingBudget: 32768 }; // MAX THINKING
+        systemInstruction += "\nTHINKING MODE: ON. Analyze the user request deeply to construct the perfect scene composition before outputting the prompt.";
+    }
+
+    // 2. Maps Grounding (Real Location Data)
+    else if (config?.useGrounding === 'googleMaps') {
+        model = "gemini-2.5-flash"; // Required for Maps
+        tools = [{ googleMaps: {} }];
+        systemInstruction += "\nACCESS: Google Maps. If the user mentions a place, use the tool to get real details (coordinates, visual surroundings) and incorporate them into the prompt for realism.";
+    }
+
+    // 3. Search Grounding (Real Time Trends)
+    else if (config?.useGrounding === 'googleSearch') {
+        model = "gemini-3-flash-preview"; // Good for Search
+        tools = [{ googleSearch: {} }];
+        systemInstruction += "\nACCESS: Google Search. If the user mentions a recent event or trend, use the tool to find visual details and include them in the prompt.";
+    }
+
+    // Process history to handle attachments (Image or Video)
     const contents = [
-        { role: 'user', parts: [{ text: systemPrompt }] } // Inject system prompt as first context
+        { role: 'user', parts: [{ text: systemInstruction }] } // Inject system prompt
     ];
     
     for (const msg of history) {
         const parts: any[] = [{ text: msg.content }];
         if (msg.attachment) {
             const cleanBase64 = msg.attachment.includes(',') ? msg.attachment.split(',')[1] : msg.attachment;
-            parts.push({ inlineData: { mimeType: 'image/png', data: cleanBase64 } });
+            const mimeType = msg.attachmentType === 'video' ? 'video/mp4' : 'image/png';
+            parts.push({ inlineData: { mimeType: mimeType, data: cleanBase64 } });
         }
         contents.push({
             role: msg.role === 'assistant' ? 'model' : 'user',
@@ -335,10 +373,21 @@ export const refineMotionChat = async (history: {role: string, content: string, 
     }
 
     try {
+        const reqConfig: any = {};
+        if (tools) reqConfig.tools = tools;
+        if (thinkingConfig) reqConfig.thinkingConfig = thinkingConfig;
+
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview", // Good for reasoning
-            contents: contents
+            model: model,
+            contents: contents,
+            config: reqConfig
         });
+        
+        // Log grounding metadata if available
+        if (response.candidates?.[0]?.groundingMetadata) {
+            console.log("Grounding Used:", response.candidates[0].groundingMetadata);
+        }
+
         return response.text || "";
     } catch (e) {
         console.error("Refinement error", e);
@@ -350,7 +399,7 @@ export const generateVeoVideo = async (prompt: string, style: MotionStyle = Moti
     const apiKey = getApiKey();
     if (!apiKey) return null;
 
-    // "Hera Evolution" demands quality -> Use standard model, not fast
+    // "Hera Evolution" demands quality -> Use standard model
     const model = 'veo-3.1-generate-preview'; 
 
     const ai = new GoogleGenAI({ apiKey });
@@ -384,7 +433,7 @@ export const generateVeoVideo = async (prompt: string, style: MotionStyle = Moti
     }
 };
 
-export const generateVeoFromImage = async (imageBase64: string, description: string): Promise<string | null> => {
+export const generateVeoFromImage = async (imageBase64: string, description: string, aspectRatio: '16:9' | '9:16' = '16:9'): Promise<string | null> => {
     const apiKey = getApiKey();
     if (!apiKey) return null;
     const ai = new GoogleGenAI({ apiKey });
@@ -392,7 +441,7 @@ export const generateVeoFromImage = async (imageBase64: string, description: str
     
     try {
         let operation = await ai.models.generateVideos({
-            model: 'veo-3.1-fast-generate-preview',
+            model: 'veo-3.1-fast-generate-preview', // MUST use fast for image-to-video currently per docs/prompt
             prompt: description,
             image: {
                 imageBytes: cleanBase64,
@@ -401,7 +450,7 @@ export const generateVeoFromImage = async (imageBase64: string, description: str
             config: {
                 numberOfVideos: 1,
                 resolution: '720p',
-                aspectRatio: '16:9'
+                aspectRatio: aspectRatio
             }
         });
 

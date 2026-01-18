@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MotionConfig, MotionMode, MotionStyle, MotionVisualTheme, MotionAspectRatio, MotionChatMessage } from '../types';
-import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech } from '../services/geminiService';
+import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent } from '../services/geminiService';
 
 interface MotionGeneratorViewProps {
     onBack: () => void;
@@ -27,11 +27,14 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         resolution: '4K',
         // Map Defaults
         mapStyle: 'Satellite',
-        mapDataExplosion: false, // Default off
+        mapDataExplosion: false, 
         // Data Defaults
         chartType: 'Bar',
         // Typo Defaults
-        typoText: ''
+        typoText: '',
+        // Intelligence
+        useThinking: false,
+        useGrounding: 'none'
     });
 
     // Chat State
@@ -39,12 +42,14 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         { 
             id: 'init', 
             role: 'assistant', 
-            content: 'Olá! Sou o Motion Director AI. Posso simular dados de satélite 3D e criar efeitos de "Explosão de Dados" (Hera Evolution).', 
+            content: 'Olá! Sou o Motion Director AI. Posso ver vídeos, analisar imagens, pensar profundamente (Gemini 3 Pro) e acessar Mapas/Busca.', 
             timestamp: Date.now() 
         }
     ]);
     const [inputMessage, setInputMessage] = useState('');
-    const [attachedImage, setAttachedImage] = useState<string | null>(null); // New: Reference Frame
+    const [attachedMedia, setAttachedMedia] = useState<string | null>(null); // Base64
+    const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+    
     const [speakingId, setSpeakingId] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,10 +70,9 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
     const handleModeSwitch = (mode: MotionMode) => {
         setCurrentMode(mode);
         setConfig(prev => ({ ...prev, mode }));
-        // Add system message to chat
-        const content = mode === MotionMode.MAPS 
-            ? `Modo Mapas Ativado. Posso gerar zooms espaciais com dados.`
-            : `Modo alterado para: ${mode}`;
+        
+        let content = `Modo alterado para: ${mode}`;
+        if (mode === MotionMode.MAPS) content = "Modo Mapas Ativado. Posso usar o Google Maps (Gemini 2.5) para realismo.";
             
         setChatHistory(prev => [...prev, {
             id: Date.now().toString(),
@@ -90,37 +94,53 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            const isVideo = file.type.startsWith('video/');
+            setMediaType(isVideo ? 'video' : 'image');
+            
             const reader = new FileReader();
             reader.onloadend = () => {
-                setAttachedImage(reader.result as string);
+                setAttachedMedia(reader.result as string);
+                // Auto-analyze instruction if video
+                if (isVideo) {
+                    setInputMessage(prev => prev ? prev : "Analise este vídeo e extraia os principais movimentos para replicar no Veo.");
+                }
             };
             reader.readAsDataURL(file);
         }
     };
 
     const handleSendMessage = async () => {
-        if (!inputMessage.trim() && !attachedImage && currentMode === MotionMode.STUDIO) return;
+        if (!inputMessage.trim() && !attachedMedia && currentMode === MotionMode.STUDIO) return;
 
         // 1. Add User Message
         const userMsg: MotionChatMessage = {
             id: Date.now().toString(),
             role: 'user',
-            content: inputMessage || (attachedImage ? 'Analisar imagem anexada...' : `Gerar vídeo no modo ${currentMode}`),
+            content: inputMessage || (attachedMedia ? 'Analisar mídia anexada...' : `Gerar vídeo no modo ${currentMode}`),
             timestamp: Date.now(),
-            attachment: attachedImage || undefined
+            attachment: attachedMedia || undefined,
+            attachmentType: mediaType || undefined
         };
         setChatHistory(prev => [...prev, userMsg]);
         
         // Reset Inputs
         setInputMessage('');
-        const currentAttachment = attachedImage;
-        setAttachedImage(null);
+        const currentAttachment = attachedMedia;
+        const currentMediaType = mediaType;
+        setAttachedMedia(null);
+        setMediaType(null);
         
         setIsGenerating(true);
-        setLoadingStep('Motion Director: Analisando composição e dados...');
+        
+        // Determine Loading State based on Intelligence
+        let stepText = 'Motion Director: Processando...';
+        if (config.useThinking) stepText = 'Gemini 3 Pro: Pensando profundamente (Budget 32k)...';
+        else if (config.useGrounding === 'googleMaps') stepText = 'Gemini 2.5: Acessando Google Maps...';
+        else if (config.useGrounding === 'googleSearch') stepText = 'Gemini 3 Flash: Pesquisando tendências...';
+        setLoadingStep(stepText);
 
         try {
             let finalPrompt = '';
@@ -130,7 +150,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
             if (currentMode === MotionMode.MAPS) {
                 if (!config.mapStart || !config.mapEnd) throw new Error("Defina origem e destino.");
                 finalPrompt = generateMapPrompt(config.mapStart, config.mapEnd, config.mapStyle || 'Satellite', config.mapDataExplosion || false);
-                setLoadingStep(config.mapDataExplosion ? 'Veo: Criando Explosão de Dados VFX...' : 'Veo: Renderizando topografia 3D...');
+                setLoadingStep('Veo: Renderizando topografia 3D...');
                 videoUri = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
             } 
             else if (currentMode === MotionMode.DATA) {
@@ -146,23 +166,30 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                  videoUri = await generateVeoVideo(finalPrompt, MotionStyle.KINETIC_TYPO, config.aspectRatio);
             } 
             else {
-                // STUDIO MODE: The "Director Agent" Logic
-                if (currentAttachment) {
-                     // If image provided, use Image-to-Video with Director's instructions
-                     const historyForAI = chatHistory.concat(userMsg).map(m => ({ 
-                         role: m.role, 
-                         content: m.content, 
-                         attachment: m.attachment 
-                     }));
-                     // Ask Director for a prompt that describes HOW to move this image
-                     finalPrompt = await refineMotionChat(historyForAI);
-                     setLoadingStep('Veo: Transformando frame em vídeo (Image-to-Video)...');
-                     videoUri = await generateVeoFromImage(currentAttachment, finalPrompt);
+                // STUDIO MODE: The "Director Agent" Logic (Now with Super Powers)
+                
+                // Construct history for the AI
+                const historyForAI = chatHistory.concat(userMsg).map(m => ({ 
+                    role: m.role, 
+                    content: m.content, 
+                    attachment: m.attachment,
+                    attachmentType: m.attachmentType
+                }));
+
+                // Call the Smart Router
+                finalPrompt = await refineMotionChat(historyForAI, config);
+                
+                // If the user just wanted analysis (indicated by prompt keywords or context), maybe don't gen video immediately?
+                // For this demo, we assume "Motion Generator" always implies video generation unless explicit stop.
+                
+                if (currentAttachment && currentMediaType === 'image') {
+                     // Image-to-Video
+                     setLoadingStep('Veo 3.1: Animate Image (Fast Preview)...');
+                     videoUri = await generateVeoFromImage(currentAttachment, finalPrompt, config.aspectRatio);
                 } else {
-                     // Text-to-Video with Refinement
-                     const historyForAI = chatHistory.concat(userMsg).map(m => ({ role: m.role, content: m.content }));
-                     finalPrompt = await refineMotionChat(historyForAI);
-                     setLoadingStep(`Veo: Gerando cena (Hera Style)...`);
+                     // Text-to-Video (or Video Analysis -> Text -> New Video)
+                     // Note: We can't edit existing video bytes yet, only generate NEW ones based on analysis.
+                     setLoadingStep(`Veo 3.1: Gerando cena (${config.aspectRatio})...`);
                      videoUri = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
                 }
             }
@@ -173,7 +200,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 setChatHistory(prev => [...prev, {
                     id: Date.now().toString(),
                     role: 'assistant',
-                    content: `🎬 Renderização concluída.\nPrompt Técnico Utilizado: "${finalPrompt.substring(0, 50)}..."\nSugestão de Áudio: Trilha cinematográfica deep bass com SFX de glitch.`,
+                    content: `🎬 Renderização concluída.\nPrompt Técnico: "${finalPrompt.substring(0, 80)}..."`,
                     timestamp: Date.now(),
                     videoUri: videoUri
                 }]);
@@ -202,6 +229,14 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         a.click();
     };
 
+    // Helper to get active intelligence icon
+    const getBrainIcon = () => {
+        if (config.useThinking) return 'psychology';
+        if (config.useGrounding === 'googleMaps') return 'map';
+        if (config.useGrounding === 'googleSearch') return 'travel_explore';
+        return 'auto_awesome';
+    };
+
     return (
         <div className="max-w-[1800px] mx-auto flex flex-col h-[calc(100vh-80px)] fade-in pb-4 px-4 overflow-hidden">
             
@@ -228,23 +263,14 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 
                 <div className="flex items-center gap-3 pr-2">
                      <div className="flex items-center gap-2 bg-black/40 rounded-lg p-1 border border-white/5">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase px-2">Export</span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase px-2">Veo 3.1</span>
                         <select 
                             className="bg-transparent text-white text-[10px] font-bold outline-none cursor-pointer"
-                            value={config.resolution}
-                            onChange={(e) => setConfig({...config, resolution: e.target.value as any})}
+                            value={config.aspectRatio}
+                            onChange={(e) => setConfig({...config, aspectRatio: e.target.value as any})}
                         >
-                            <option value="1080p">1080p</option>
-                            <option value="4K">4K Pro</option>
-                        </select>
-                        <div className="w-px h-3 bg-white/20"></div>
-                        <select 
-                            className="bg-transparent text-white text-[10px] font-bold outline-none cursor-pointer"
-                            value={config.fps}
-                            onChange={(e) => setConfig({...config, fps: e.target.value as any})}
-                        >
-                            <option value="30">30 FPS</option>
-                            <option value="60">60 FPS</option>
+                            <option value="16:9">16:9 (Landscape)</option>
+                            <option value="9:16">9:16 (Portrait)</option>
                         </select>
                      </div>
                 </div>
@@ -403,7 +429,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                         {currentMode === MotionMode.STUDIO && (
                             <div className="flex flex-col gap-2 h-full justify-center text-center opacity-50">
                                 <span className="material-symbols-outlined text-3xl">chat</span>
-                                <p className="text-sm">Envie um frame de referência ou descreva a cena para o Diretor.</p>
+                                <p className="text-sm">Envie um frame, vídeo para análise ou instrua o Diretor.</p>
                             </div>
                         )}
                         
@@ -427,21 +453,55 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
                 {/* RIGHT: CHAT INTERFACE (The "Director") */}
                 <div className="w-full lg:w-[400px] bg-[#020617] border-l border-white/10 flex flex-col shadow-2xl">
-                    <div className="p-4 border-b border-white/5 bg-black/20">
+                    <div className="p-4 border-b border-white/5 bg-black/20 flex flex-col gap-2">
                         <h3 className="text-sm font-bold text-white flex items-center gap-2">
                             <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
                             Director AI Agent
                         </h3>
+                        
+                        {/* INTELLIGENCE TOOLBAR */}
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setConfig(prev => ({...prev, useThinking: !prev.useThinking}))}
+                                className={`flex-1 py-1.5 rounded-lg border text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${config.useThinking ? 'bg-purple-500/20 border-purple-500 text-purple-300' : 'border-white/10 text-slate-500 hover:text-white'}`}
+                                title="Gemini 3 Pro (32k Tokens)"
+                            >
+                                <span className="material-symbols-outlined text-[12px]">psychology</span>
+                                Think
+                            </button>
+                            <button 
+                                onClick={() => setConfig(prev => ({...prev, useGrounding: prev.useGrounding === 'googleMaps' ? 'none' : 'googleMaps'}))}
+                                className={`flex-1 py-1.5 rounded-lg border text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${config.useGrounding === 'googleMaps' ? 'bg-green-500/20 border-green-500 text-green-300' : 'border-white/10 text-slate-500 hover:text-white'}`}
+                                title="Gemini 2.5 Flash + Maps"
+                            >
+                                <span className="material-symbols-outlined text-[12px]">map</span>
+                                Maps
+                            </button>
+                            <button 
+                                onClick={() => setConfig(prev => ({...prev, useGrounding: prev.useGrounding === 'googleSearch' ? 'none' : 'googleSearch'}))}
+                                className={`flex-1 py-1.5 rounded-lg border text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${config.useGrounding === 'googleSearch' ? 'bg-blue-500/20 border-blue-500 text-blue-300' : 'border-white/10 text-slate-500 hover:text-white'}`}
+                                title="Gemini 3 Flash + Search"
+                            >
+                                <span className="material-symbols-outlined text-[12px]">travel_explore</span>
+                                Search
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar">
                         {chatHistory.map((msg) => (
                             <div key={msg.id} className={`flex flex-col gap-1 max-w-[90%] ${msg.role === 'user' ? 'self-end items-end' : 'self-start items-start'}`}>
                                 {msg.attachment && (
-                                    <div className="w-20 h-20 mb-1 rounded-lg border border-white/20 overflow-hidden relative">
-                                        <img src={msg.attachment} className="w-full h-full object-cover" alt="attachment" />
-                                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                                            <span className="material-symbols-outlined text-white text-sm">image</span>
+                                    <div className="w-20 h-20 mb-1 rounded-lg border border-white/20 overflow-hidden relative bg-black">
+                                        {msg.attachmentType === 'video' ? (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-white text-2xl">videocam</span>
+                                            </div>
+                                        ) : (
+                                            <img src={msg.attachment} className="w-full h-full object-cover" alt="attachment" />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                                            {/* Overlay */}
                                         </div>
                                     </div>
                                 )}
@@ -478,10 +538,13 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                         ))}
                         {isGenerating && (
                              <div className="self-start bg-white/5 p-3 rounded-2xl rounded-tl-sm border border-white/5">
-                                <div className="flex gap-1">
-                                    <span className="size-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                                    <span className="size-1.5 bg-slate-400 rounded-full animate-bounce delay-100"></span>
-                                    <span className="size-1.5 bg-slate-400 rounded-full animate-bounce delay-200"></span>
+                                <div className="flex gap-2 items-center">
+                                    <span className="material-symbols-outlined text-sm animate-spin text-slate-400">{getBrainIcon()}</span>
+                                    <div className="flex gap-1">
+                                        <span className="size-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                                        <span className="size-1.5 bg-slate-400 rounded-full animate-bounce delay-100"></span>
+                                        <span className="size-1.5 bg-slate-400 rounded-full animate-bounce delay-200"></span>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -490,28 +553,34 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
                     {/* REFERENCE FRAME UPLOAD & INPUT */}
                     <div className="p-4 bg-black/40 border-t border-white/5 flex flex-col gap-2">
-                        {attachedImage && (
+                        {attachedMedia && (
                             <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
-                                <img src={attachedImage} className="size-8 rounded object-cover" alt="ref" />
-                                <span className="text-[10px] text-slate-400 flex-1 truncate">Frame de Referência.png</span>
-                                <button onClick={() => setAttachedImage(null)} className="text-slate-500 hover:text-white"><span className="material-symbols-outlined text-sm">close</span></button>
+                                {mediaType === 'video' ? (
+                                    <span className="material-symbols-outlined text-slate-400">videocam</span>
+                                ) : (
+                                    <img src={attachedMedia} className="size-8 rounded object-cover" alt="ref" />
+                                )}
+                                <span className="text-[10px] text-slate-400 flex-1 truncate">
+                                    {mediaType === 'video' ? 'Vídeo para Análise' : 'Frame de Referência'}
+                                </span>
+                                <button onClick={() => { setAttachedMedia(null); setMediaType(null); }} className="text-slate-500 hover:text-white"><span className="material-symbols-outlined text-sm">close</span></button>
                             </div>
                         )}
                         
                         <div className="relative flex items-center gap-2">
                             <button 
                                 onClick={() => fileInputRef.current?.click()}
-                                className={`p-3 rounded-xl border transition-colors ${attachedImage ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
-                                title="Anexar Frame de Referência"
+                                className={`p-3 rounded-xl border transition-colors ${attachedMedia ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                                title="Anexar Imagem ou Vídeo"
                             >
-                                <span className="material-symbols-outlined text-[18px]">add_photo_alternate</span>
+                                <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
                             </button>
                             <input 
                                 type="file" 
                                 ref={fileInputRef} 
                                 className="hidden" 
-                                accept="image/*" 
-                                onChange={handleImageUpload}
+                                accept="image/*,video/*" 
+                                onChange={handleMediaUpload}
                             />
 
                             <div className="relative flex-1">
