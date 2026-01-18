@@ -1,8 +1,7 @@
-
 import React from 'react';
 
 interface SidebarProps {
-  onNavigate: (view: 'dashboard' | 'create' | 'creative' | 'motion' | 'crm' | 'projects' | 'finance' | 'team') => void;
+  onNavigate: (view: 'dashboard' | 'create' | 'creative' | 'motion' | 'crm' | 'projects' | 'finance' | 'team' | 'calendar' | 'tasks') => void;
   currentView: string;
   isOpen: boolean;
   onClose: () => void;
@@ -78,6 +77,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView, isOpen, onCl
                             <button onClick={() => { onNavigate('dashboard'); onClose(); }} className={getLinkClass('dashboard')}>
                                 <i className={`fa-solid fa-grid-2 ${getIconClass(currentView === 'dashboard', '')}`}></i>
                                 Dashboard
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => { onNavigate('tasks'); onClose(); }} className={getLinkClass('tasks')}>
+                                <i className={`fa-solid fa-list-check ${getIconClass(currentView === 'tasks', 'group-hover:text-purple-400')}`}></i>
+                                Tarefas
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => { onNavigate('calendar'); onClose(); }} className={getLinkClass('calendar')}>
+                                <i className={`fa-regular fa-calendar-days ${getIconClass(currentView === 'calendar', 'group-hover:text-purple-400')}`}></i>
+                                Calendário
                             </button>
                         </li>
                         <li>

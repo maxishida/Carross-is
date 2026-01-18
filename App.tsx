@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
@@ -9,32 +8,20 @@ import CRMView from './components/CRMView';
 import ProjectsView from './components/ProjectsView';
 import FinanceView from './components/FinanceView';
 import TeamView from './components/TeamView';
+import CalendarView from './components/CalendarView';
+import TasksView from './components/TasksView';
 import ToastContainer from './components/ToastContainer';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ToastNotification } from './types';
+import { AgencyProvider, useAgency } from './context/AgencyContext';
 
-function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'create' | 'creative' | 'motion' | 'crm' | 'projects' | 'finance' | 'team'>('dashboard');
+// Inner component to consume context
+const AppContent = () => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'create' | 'creative' | 'motion' | 'crm' | 'projects' | 'finance' | 'team' | 'calendar' | 'tasks'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [credits, setCredits] = useState(750);
-  const [toasts, setToasts] = useState<ToastNotification[]>([]);
-
-  // --- GLOBAL ACTIONS ---
-
-  const addToast = (message: string, type: 'success' | 'error' | 'info' | 'loading' = 'info') => {
-      const id = Date.now().toString();
-      setToasts(prev => [...prev, { id, message, type }]);
-      return id; // Return ID so loading toasts can be removed programmatically
-  };
-
-  const removeToast = (id: string) => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-  };
-
-  const deductCredits = (amount: number) => {
-      setCredits(prev => Math.max(0, prev - amount));
-      addToast(`${amount} tokens utilizados`, 'info');
-  };
+  
+  // Use Global Toast from Context
+  const { toasts, removeToast } = useAgency();
 
   // Wrapper to inject toast/credit logic into views
   const renderContent = () => {
@@ -89,6 +76,18 @@ function App() {
                       <TeamView />
                   </ErrorBoundary>
               );
+          case 'calendar':
+              return (
+                  <ErrorBoundary>
+                      <CalendarView />
+                  </ErrorBoundary>
+              );
+          case 'tasks':
+              return (
+                  <ErrorBoundary>
+                      <TasksView />
+                  </ErrorBoundary>
+              );
           case 'dashboard':
           default:
               return (
@@ -141,6 +140,14 @@ function App() {
       </main>
     </div>
   );
+};
+
+function App() {
+    return (
+        <AgencyProvider>
+            <AppContent />
+        </AgencyProvider>
+    );
 }
 
 export default App;

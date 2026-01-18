@@ -1,5 +1,7 @@
 {
   "name": "Gerador de Carrosséis IA",
   "description": "Uma ferramenta multiagente para criar, estruturar e gerar prompts visuais para carrosséis de redes sociais usando IA.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

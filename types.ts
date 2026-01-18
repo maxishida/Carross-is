@@ -231,7 +231,13 @@ export interface AgencyTask {
     client: string;
     status: 'backlog' | 'progress' | 'done';
     priority: 'low' | 'medium' | 'high';
-    teamMembers: string[];
+    teamMembers: string[]; // IDs
+    deadline?: string; // ISO Date string
+    notificationSent?: boolean;
+    description?: string;
+    estimatedHours?: number; // New: for workload calculation
+    isBlocked?: boolean; // New: Block status
+    blockReason?: string; // New: Reason for blockage
 }
 
 export interface AgencyMetric {
@@ -254,6 +260,31 @@ export interface Lead {
     probability: number; // 0-100
 }
 
+export interface ProjectPhase {
+    name: string;
+    status: 'pending' | 'active' | 'completed';
+    progress: number;
+}
+
+// NEW: Library for Projects
+export interface LibraryItem {
+    id: string;
+    name: string;
+    type: 'image' | 'video' | 'doc' | 'folder';
+    url?: string; // If file
+    createdAt: string;
+    size?: string;
+    tags?: string[];
+}
+
+// NEW: Finance Config for Projects
+export interface ProjectFinanceConfig {
+    totalValue: number;
+    paymentStatus: 'paid' | 'partial' | 'pending';
+    installments: number;
+    nextPaymentDate?: string;
+}
+
 export interface Project {
     id: string;
     name: string;
@@ -262,7 +293,13 @@ export interface Project {
     progress: number; // 0-100
     status: 'active' | 'review' | 'completed' | 'blocked';
     thumbnail?: string; // Project cover or preview
-    members: string[]; // Initials or Avatar URLs
+    members: string[]; // IDs of team members
+    contextFile?: string; // Content of PDF/TXT attached
+    contextFileName?: string;
+    phases: ProjectPhase[];
+    description?: string;
+    library?: LibraryItem[]; // NEW: Asset Library
+    finance?: ProjectFinanceConfig; // NEW: Finance Settings
 }
 
 export interface FinanceItem {
@@ -275,14 +312,41 @@ export interface FinanceItem {
     category: string;
 }
 
+export interface Allocation {
+    id: string;
+    projectId: string;
+    projectName: string;
+    role: string; // Specific role in this project (e.g. Lead Dev)
+    hoursPerWeek: number;
+    startDate?: string;
+    endDate?: string;
+}
+
 export interface TeamMember {
     id: string;
     name: string;
     role: string;
     avatar: string;
-    activeProjects: number;
-    workload: number; // 0-100%
+    activeProjects: number; // Legacy, can calculate from allocations
+    capacity: number; // Weekly capacity in hours (default 40)
+    allocations: Allocation[]; // New: Project assignments
+    workload: number; // 0-100% (Calculated)
     status: 'online' | 'busy' | 'offline';
+    skills: string[];
+    bio?: string;
+    email?: string;
+}
+
+// --- CALENDAR TYPES ---
+export interface CalendarEvent {
+    id: string;
+    title: string;
+    start: string; // ISO String
+    end: string; // ISO String
+    type: 'meeting' | 'task' | 'deadline' | 'other';
+    projectId?: string; // Link to project
+    description?: string;
+    attendees?: string[]; // IDs of team members
 }
 
 // --- AGENCY PROPOSAL AI TYPES ---
@@ -307,4 +371,11 @@ export interface AgencyProposal {
     teamStructure: SuggestedRole[];
     options: ProposalOption[];
     nextSteps: string;
+}
+
+// --- AI DIRECTOR COMMANDS ---
+export interface DirectorAction {
+    action: 'create_task' | 'create_event' | 'schedule_meeting' | 'create_project' | 'analyze_finance' | 'audit_schedule' | 'unknown';
+    data?: any;
+    reply: string;
 }

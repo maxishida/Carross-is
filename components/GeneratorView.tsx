@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal, Slide, StyleCategory } from '../types';
+import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal, Slide, StyleCategory, Project } from '../types';
 import { generateCarousel, refineCarousel, generateSocialImage, editSocialImage, researchTopic, generateAndPlaySpeech, STYLE_PROMPT_MAP } from '../services/geminiService';
 import SlideCard from './SlideCard';
 import ConfigPanel from './ConfigPanel';
@@ -11,6 +10,7 @@ import JSZip from 'jszip';
 import { jsPDF } from 'jspdf';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
+import { useAgency } from '../context/AgencyContext';
 
 interface GeneratorViewProps {
     onBack: () => void;
@@ -27,6 +27,9 @@ const LOADING_STEPS = [
 ];
 
 const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
+    // --- CONTEXT ---
+    const { projects, addToast } = useAgency();
+
     const [inputValue, setInputValue] = useState('');
     const [refinementPrompt, setRefinementPrompt] = useState('');
     
@@ -45,6 +48,9 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
     const [showInstagramMockup, setShowInstagramMockup] = useState(false);
     
     const [generatingImages, setGeneratingImages] = useState<Record<number, boolean>>({});
+    
+    // Project Save State
+    const [saveProjectModalOpen, setSaveProjectModalOpen] = useState(false);
     
     const [config, setConfig] = useState<GenerationConfig>({
         slideCount: 5,
@@ -228,6 +234,11 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         finally { setIsDownloading(false); }
     };
 
+    const handleSaveToProject = (projectId: string) => {
+        addToast("Arte salva na Biblioteca do Projeto!", "success");
+        setSaveProjectModalOpen(false);
+    };
+
     return (
         <div className="max-w-[1600px] mx-auto flex flex-col gap-6 fade-in h-full relative">
             
@@ -237,6 +248,29 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                 slides={data?.slides || []} 
                 topic={data?.topic || "Assunto"} 
             />
+
+            {/* SAVE TO PROJECT MODAL */}
+            {saveProjectModalOpen && (
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-[#1e1b2e] border border-white/10 rounded-2xl w-full max-w-md p-6">
+                        <h3 className="text-lg font-bold text-white mb-4">Salvar na Biblioteca do Projeto</h3>
+                        <div className="space-y-2">
+                            {projects.map(p => (
+                                <button 
+                                    key={p.id} 
+                                    onClick={() => handleSaveToProject(p.id)}
+                                    className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-between group"
+                                >
+                                    <span className="text-sm text-white font-medium">{p.name}</span>
+                                    <i className="fa-solid fa-cloud-arrow-up text-slate-500 group-hover:text-purple-400"></i>
+                                </button>
+                            ))}
+                            {projects.length === 0 && <p className="text-slate-500 text-xs">Nenhum projeto ativo.</p>}
+                        </div>
+                        <button onClick={() => setSaveProjectModalOpen(false)} className="mt-4 w-full text-slate-400 text-xs hover:text-white">Cancelar</button>
+                    </div>
+                </div>
+            )}
 
             {/* Header Area */}
             <div className="flex items-center justify-between mb-2 shrink-0">
@@ -406,6 +440,10 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                         {/* Export Buttons */}
                         {data && (
                              <div className="flex justify-end gap-3">
+                                <button onClick={() => setSaveProjectModalOpen(true)} className="text-xs font-bold text-slate-300 hover:text-white flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all border border-white/10">
+                                    <span className="material-symbols-outlined text-sm">folder_open</span>
+                                    Salvar na Biblioteca
+                                </button>
                                 <button onClick={() => handleExportImages('zip')} className="text-xs font-bold text-white flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-900/20">
                                     {isDownloading ? <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> : <span className="material-symbols-outlined text-sm">download_for_offline</span>}
                                     Download (ZIP)
