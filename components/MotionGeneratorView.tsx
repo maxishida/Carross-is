@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { MotionConfig, MotionType, MotionStyle, MotionVisualTheme } from '../types';
 import { generateMotionConcept, generateVeoVideo } from '../services/geminiService';
 
@@ -20,7 +21,12 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
     const [directorScript, setDirectorScript] = useState<string>('');
     const [videoUri, setVideoUri] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
+    const [diagnosticInfo, setDiagnosticInfo] = useState<string | null>(null);
     const [hasApiKey, setHasApiKey] = useState<boolean>(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    
+    // Ref para o player de vídeo para forçar reload se necessário
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     // Verificar se a API Key foi selecionada ao montar
     useEffect(() => {
@@ -30,7 +36,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 const hasKey = await aistudio.hasSelectedApiKey();
                 setHasApiKey(hasKey);
             } else {
-                // Fallback para desenvolvimento local ou se não estiver no ambiente IDX
+                // Fallback para desenvolvimento local
                 setHasApiKey(true);
             }
         };
@@ -42,11 +48,80 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         if (aistudio) {
             try {
                 await aistudio.openSelectKey();
-                // Assume sucesso após fechar o modal para evitar race condition
                 setHasApiKey(true); 
             } catch (e) {
                 console.error("Erro ao selecionar chave:", e);
             }
+        }
+    };
+
+    const handleDownloadVideo = async () => {
+        if (!videoUri) return;
+        setIsDownloading(true);
+
+        try {
+            // Fetch as blob to bypass CORS/Browser download restrictions
+            const response = await fetch(videoUri);
+            if (!response.ok) throw new Error(`Falha HTTP ${response.status}`);
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            // Generate a cool filename
+            const filename = `veo_motion_${topic.substring(0, 10).replace(/\s/g, '_')}_${Date.now()}.mp4`;
+            a.download = filename;
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+        } catch (err: any) {
+            console.warn("Download direto falhou, tentando fallback...", err);
+            // Fallback: Open in new tab
+            window.open(videoUri, '_blank');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    const runDiagnostic = async (uri: string) => {
+        setDiagnosticInfo("Rodando diagnóstico de rede...");
+        try {
+            const response = await fetch(uri, { method: 'HEAD' });
+            if (!response.ok) {
+                if (response.status === 403) return "Erro 403: Acesso Negado. Verifique se a API Key tem permissão para Vertex AI/Veo ou se o projeto tem billing ativo.";
+                if (response.status === 404) return "Erro 404: Vídeo não encontrado. A URL pode ter expirado.";
+                return `Erro HTTP ${response.status}: ${response.statusText}`;
+            }
+            return "Diagnóstico: O arquivo parece acessível via rede. Possível problema de codec no navegador.";
+        } catch (e: any) {
+            return `Erro de Conexão/CORS: ${e.message}. O servidor pode estar bloqueando acesso direto.`;
+        }
+    };
+
+    const handleVideoError = async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        const videoError = e.currentTarget.error;
+        let shortMsg = "Erro ao reproduzir.";
+        if (videoError) {
+             switch(videoError.code) {
+                 case 1: shortMsg = "Aborted"; break;
+                 case 2: shortMsg = "Network Error"; break;
+                 case 3: shortMsg = "Decode Error"; break;
+                 case 4: shortMsg = "Source Not Supported"; break;
+             }
+        }
+        
+        setError(`Falha no Player (${shortMsg}).`);
+        
+        if (videoUri) {
+            const diag = await runDiagnostic(videoUri);
+            setDiagnosticInfo(diag);
         }
     };
 
@@ -55,6 +130,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         
         setStatus('scripting');
         setError(null);
+        setDiagnosticInfo(null);
         setDirectorScript('');
         setVideoUri('');
 
@@ -67,22 +143,27 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
             setStatus('rendering');
 
             // Step 2: Veo Renderer
-            // Passamos o estilo para decidir entre Fast/High Quality
             const uri = await generateVeoVideo(script, config.style);
-            if (!uri) throw new Error("O vídeo não pôde ser gerado. Verifique se sua conta possui acesso ao Veo.");
+            
+            if (!uri) {
+                 throw new Error("A API Veo não retornou uma URL válida.");
+            }
 
+            console.log("Video URI recebida:", uri); // Diagnostic log
             setVideoUri(uri);
             setStatus('done');
-
+            
         } catch (err: any) {
             console.error(err);
-            let msg = "Erro no processo de criação.";
-            if ((err.message && err.message.includes("404")) || (err.message && err.message.includes("Requested entity was not found"))) {
-                msg = "Modelo Veo não encontrado ou API Key inválida. Selecione uma chave de projeto pago.";
-                setHasApiKey(false); // Forçar re-seleção
+            let msg = "Erro desconhecido no processo de criação.";
+            
+            if (err.message && err.message.includes("404")) {
+                msg = "Modelo Veo não encontrado (404). Verifique projeto/API.";
+                setHasApiKey(false); 
             } else if (err.message) {
                  msg = err.message;
             }
+            
             setError(msg);
             setStatus('idle');
         }
@@ -153,7 +234,8 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                     
                     {!hasApiKey && (
                         <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                             <p className="text-xs text-yellow-200 mb-2">
+                             <p className="text-xs text-yellow-200 mb-2 font-bold">⚠️ Configuração Necessária</p>
+                             <p className="text-xs text-yellow-200/80 mb-2">
                                 Para usar o Veo, é necessário selecionar um projeto Google Cloud com faturamento ativado.
                              </p>
                              <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-[10px] text-yellow-400 underline block mb-3">Saiba mais sobre faturamento</a>
@@ -238,38 +320,80 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                     <div className="flex flex-col items-center gap-4 text-slate-400">
                                         <div className="size-16 rounded-full border-2 border-white/10 border-t-neon-cyan animate-spin"></div>
                                         <p className="text-sm font-medium animate-pulse">Renderizando vídeo de alta qualidade...</p>
-                                        <p className="text-xs opacity-50">Isso pode levar alguns minutos (1-2 min)</p>
+                                        <p className="text-xs opacity-50">Isso pode levar alguns minutos (1-2 min). Não feche esta tela.</p>
                                     </div>
                                 )}
 
-                                {status === 'done' && videoUri && (
+                                {status === 'done' && videoUri && !error && (
                                     <video 
-                                        src={videoUri} 
+                                        ref={videoRef}
                                         controls 
                                         autoPlay 
                                         loop 
                                         className="w-full h-full object-cover"
-                                    />
+                                        onError={handleVideoError}
+                                        key={videoUri} // Force re-render on URI change
+                                    >
+                                        <source src={videoUri} type="video/mp4" />
+                                        Seu navegador não suporta a tag de vídeo.
+                                    </video>
                                 )}
 
                                 {error && (
-                                    <div className="text-red-400 flex flex-col items-center gap-2 text-center p-4">
+                                    <div className="text-red-400 flex flex-col items-center gap-2 text-center p-6 bg-red-900/10 rounded-xl m-4 border border-red-500/20 max-w-lg">
                                         <span className="material-symbols-outlined text-4xl">error_outline</span>
-                                        <p>{error}</p>
+                                        <p className="font-bold">Falha na Reprodução</p>
+                                        <p className="text-xs text-red-300">{error}</p>
+                                        
+                                        {diagnosticInfo && (
+                                            <div className="mt-2 p-2 bg-black/30 rounded border border-white/5 w-full text-left">
+                                                <p className="text-[10px] font-mono text-yellow-500">{diagnosticInfo}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="flex gap-2 mt-4">
+                                            <button 
+                                                onClick={() => setStatus('idle')}
+                                                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs rounded-lg transition-colors border border-white/10"
+                                            >
+                                                Tentar Novamente
+                                            </button>
+                                            {videoUri && (
+                                                <button 
+                                                    onClick={() => window.open(videoUri, '_blank')}
+                                                    className="px-4 py-2 bg-primary/20 hover:bg-primary/40 text-primary text-xs rounded-lg transition-colors border border-primary/20 flex items-center gap-2"
+                                                >
+                                                    <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                                    Abrir Link Direto
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
                             {status === 'done' && videoUri && (
-                                <div className="flex justify-end">
-                                    <a 
-                                        href={videoUri} 
-                                        download="motion_video.mp4"
-                                        className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all"
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        onClick={() => setStatus('idle')}
+                                        className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-xl transition-all text-xs"
                                     >
-                                        <span className="material-symbols-outlined">download</span>
-                                        Baixar Vídeo
-                                    </a>
+                                        <span className="material-symbols-outlined text-sm">refresh</span>
+                                        Novo Vídeo
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={handleDownloadVideo}
+                                        disabled={isDownloading}
+                                        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+                                    >
+                                        {isDownloading ? (
+                                            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                                        ) : (
+                                            <span className="material-symbols-outlined">download</span>
+                                        )}
+                                        {isDownloading ? 'Baixando...' : 'Baixar Vídeo (MP4)'}
+                                    </button>
                                 </div>
                             )}
                         </div>

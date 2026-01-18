@@ -21,6 +21,7 @@ export interface CarouselData {
   overview: string;
   referenceAnalysis?: string;
   slides: Slide[];
+  sources?: string[];
 }
 
 export interface CreativeVariation {
@@ -32,6 +33,10 @@ export interface CreativeVariation {
   fontStyle: 'sans' | 'serif' | 'mono' | 'display';
   layoutMode: 'centered' | 'left-aligned' | 'bold-frame';
   generatedImage?: string; 
+  // NEW: Support for product overlay
+  isProductVariation?: boolean;
+  // NEW: Support for generated video
+  generatedVideo?: string;
 }
 
 export interface CreativeData {
@@ -47,13 +52,20 @@ export interface GenerationConfig {
   customStylePrompt?: string; 
   brandColor?: string; 
   goal: CarouselGoal; 
-  inputType: 'topic' | 'content'; 
+  inputType: 'topic' | 'content' | 'product'; // Added 'product'
   customTheme?: string;
   includePeople: boolean;
   referenceImage?: string;
   characterStyle?: CharacterStyleType;
   aspectRatio?: '1:1' | '9:16' | '16:9';
   layoutMode?: string; 
+  audience?: string;
+  // NEW: E-commerce fields
+  productUrl?: string;
+  productImageUrl?: string;
+  productName?: string;
+  // NEW: Brand Voice Cloning
+  brandVoiceSample?: string;
 }
 
 // --- MOTION / VEO TYPES ---

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { CarouselData, GenerationConfig, ToneType, VisualStyleType, CarouselGoal, Slide, StyleCategory } from '../types';
-import { generateCarousel, refineCarousel, generateSocialImage, editSocialImage } from '../services/geminiService';
+import { generateCarousel, refineCarousel, generateSocialImage, editSocialImage, researchTopic } from '../services/geminiService';
 import SlideCard from './SlideCard';
 import ConfigPanel from './ConfigPanel';
 import AssistantChat from './AssistantChat';
@@ -21,7 +21,8 @@ interface PreviewState {
 }
 
 const LOADING_STEPS = [
-    "Analisando tópico e persona...",
+    "Agente de Pesquisa: Consultando Google...",
+    "Analisando tópico e audiência...",
     "Definindo estratégia viral (AIDA)...",
     "Escrevendo copys persuasivas...",
     "Estruturando design visual...",
@@ -68,7 +69,8 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         inputType: 'topic',
         includePeople: false,
         customTheme: '',
-        styleCategory: StyleCategory.COMMERCIAL
+        styleCategory: StyleCategory.COMMERCIAL,
+        audience: ''
     });
 
     // --- AUTO SAVE & RECOVERY ---
@@ -141,17 +143,28 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
 
         // Start cycling loading messages
         let stepIndex = 0;
+        setLoadingMessage(LOADING_STEPS[0]);
         const intervalId = setInterval(() => {
             stepIndex = (stepIndex + 1) % LOADING_STEPS.length;
             setLoadingMessage(LOADING_STEPS[stepIndex]);
-        }, 1500);
+        }, 2000);
 
         try {
+            // STEP 0: Research (If topic input)
+            let researchResult = { text: "", sources: [] as string[] };
+            if (config.inputType === 'topic') {
+                setLoadingMessage("Agente de Pesquisa: Buscando fontes...");
+                researchResult = await researchTopic(inputValue, config.audience);
+            }
+
             // STEP 1: Generate Text Structure & Visual Prompts
-            const result = await generateCarousel(inputValue, config);
+            const result = await generateCarousel(inputValue, config, researchResult.text);
             clearInterval(intervalId);
             
             if(!result) throw new Error("Falha ao gerar estrutura.");
+            
+            // Attach sources to result
+            result.sources = researchResult.sources;
             setData(result);
             
             // STEP 2: Trigger Async Image Generation for backgrounds
@@ -700,6 +713,30 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                 </button>
                             )}
                         </div>
+
+                        {/* Research Sources Display */}
+                        {data && data.sources && data.sources.length > 0 && (
+                            <div className="glass-panel p-4 rounded-xl flex flex-col gap-2 animate-in fade-in duration-500">
+                                <h4 className="text-xs font-bold text-white uppercase flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-sm text-primary">public</span>
+                                    Fontes de Pesquisa (Grounding)
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {data.sources.map((source, idx) => (
+                                        <a 
+                                            key={idx} 
+                                            href={source} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="text-[10px] text-slate-400 hover:text-primary bg-black/30 px-2 py-1 rounded border border-white/5 truncate max-w-[200px] hover:border-primary/30 transition-colors flex items-center gap-1"
+                                        >
+                                            <span className="material-symbols-outlined text-[10px]">link</span>
+                                            {new URL(source).hostname}
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {error && (
                             <div className="p-4 rounded-xl bg-red-900/20 border border-red-500/30 text-red-200 text-center backdrop-blur-sm">

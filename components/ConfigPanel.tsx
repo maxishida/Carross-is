@@ -88,7 +88,9 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                   brandColor: kit.brandColor || prev.brandColor,
                   styleCategory: kit.styleCategory || prev.styleCategory,
                   style: kit.style || prev.style,
-                  tone: kit.tone || prev.tone
+                  tone: kit.tone || prev.tone,
+                  audience: kit.audience || prev.audience,
+                  brandVoiceSample: kit.brandVoiceSample || prev.brandVoiceSample
               }));
           } catch(e) { console.error(e); }
       } else {
@@ -108,10 +110,12 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
           brandColor: config.brandColor,
           styleCategory: config.styleCategory,
           style: config.style,
-          tone: config.tone
+          tone: config.tone,
+          audience: config.audience,
+          brandVoiceSample: config.brandVoiceSample
       };
       localStorage.setItem('user_brand_kit', JSON.stringify(kitToSave));
-  }, [config.brandColor, config.styleCategory, config.style, config.tone, loadedDefaults]);
+  }, [config.brandColor, config.styleCategory, config.style, config.tone, config.audience, config.brandVoiceSample, loadedDefaults]);
 
 
   const handleToneChange = (tone: ToneType) => {
@@ -208,6 +212,21 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
             <span className="absolute left-3 top-3 pointer-events-none material-symbols-outlined text-[18px] text-primary">flag</span>
             <span className="absolute right-3 top-3 pointer-events-none material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
          </div>
+      </div>
+
+      {/* Audience Input (NEW) */}
+      <div className="flex flex-col gap-2">
+         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            Público Alvo
+         </label>
+         <input 
+            type="text"
+            className="w-full p-3 text-xs text-white bg-[#0f172a] border border-white/10 rounded-xl focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none transition-colors"
+            placeholder="Ex: Empreendedores, Designers..."
+            value={config.audience || ''}
+            onChange={(e) => setConfig(prev => ({ ...prev, audience: e.target.value }))}
+            disabled={disabled}
+         />
       </div>
 
       {/* DYNAMIC LAYOUT SUGGESTIONS */}
@@ -409,12 +428,13 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
          )}
       </div>
 
-      {/* Tone Selector */}
+      {/* Tone Selector & Brand Voice Cloning */}
       <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              Tom de Voz
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+              <span>Tom de Voz / Clonagem</span>
+              <span className="text-primary text-[9px] border border-primary/30 px-1.5 rounded bg-primary/10">Feature #1</span>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-2">
               {Object.values(ToneType).map((t) => (
                   <button
                     key={t}
@@ -431,6 +451,14 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                   </button>
               ))}
           </div>
+          
+          <textarea 
+             className="w-full h-24 bg-black/20 border border-white/10 rounded-xl p-3 text-[10px] text-slate-300 resize-none focus:border-primary focus:ring-1 focus:ring-primary"
+             placeholder="Ou cole um texto de exemplo da sua marca aqui para clonar o estilo de escrita..."
+             value={config.brandVoiceSample || ''}
+             onChange={(e) => setConfig(prev => ({...prev, brandVoiceSample: e.target.value}))}
+             disabled={disabled}
+          />
       </div>
 
     </div>

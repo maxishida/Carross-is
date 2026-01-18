@@ -12,20 +12,22 @@ const getApiKey = (): string => {
   return key;
 };
 
+// --- CONSTANTES DE QUALIDADE VISUAL ---
+const QUALITY_MODIFIERS = "8k resolution, cinematic lighting, depth of field, photorealistic, highly detailed, ray tracing, professional photography, unreal engine 5 render";
+
 // --- ESTRATÉGIAS DE COPYWRITING ---
 const GOAL_INSTRUCTIONS: Record<CarouselGoal, string> = {
-    [CarouselGoal.GROWTH]: "ESTRATÉGIA: Crescimento. Slide 1: QUEBRA DE PADRÃO (Imagem chocante + Título polêmico). Slide 2: Retenção. Slide Final: CTA de 'Salvar'.",
-    [CarouselGoal.SALES]: "ESTRATÉGIA: VENDA AGRESSIVA. Slide 1: A DOR do cliente escancarada. Slide 2: Por que os métodos atuais falham. Slide 3: A Sua Solução (Mecanismo Único). Slide Final: CTA DE COMPRA IMEDIATA.",
-    [CarouselGoal.ENGAGEMENT]: "ESTRATÉGIA: Tribalismo. Use 'Nós vs Eles'. Faça perguntas que obrigam a pessoa a responder.",
-    [CarouselGoal.AUTHORITY]: "ESTRATÉGIA: Expert. Use dados, gráficos e termos proprietários. Mostre que você é o líder.",
-    [CarouselGoal.VIRAL]: "ESTRATÉGIA: Relatabilidade. 'Eu na vida real'. Humor rápido e visual."
+    [CarouselGoal.GROWTH]: "STRATEGY: Pattern Interrupt. Slide 1: Shocking/Controversial Hook. Slide 2: Retention. Final: 'Save' CTA.",
+    [CarouselGoal.SALES]: "STRATEGY: Aggressive Sales (AIDA). Slide 1: Pain Point. Slide 2: Why current methods fail. Slide 3: Unique Mechanism. Final: Urgent Purchase CTA.",
+    [CarouselGoal.ENGAGEMENT]: "STRATEGY: Tribalism. Use 'Us vs Them'. Ask questions that force comments.",
+    [CarouselGoal.AUTHORITY]: "STRATEGY: Expert/Deep Dive. Use data, charts, and proprietary terms. Establish leadership.",
+    [CarouselGoal.VIRAL]: "STRATEGY: Relatability. 'Me in real life'. Fast visual humor."
 };
 
 // --- DICIONÁRIO DE ESTILOS VISUAIS (O "CÉREBRO" DE DESIGN) ---
-// Isso treina o modelo para saber exatamente o que cada nome significa visualmente.
 export const STYLE_PROMPT_MAP: Record<string, string> = {
     // COMERCIAIS
-    "Neon Tech": "dark background, glowing purple and blue neon lights, futuristic UI elements, high contrast, cyber aesthetic, 8k render",
+    "Neon Tech": "dark background, glowing purple and blue neon lights, futuristic UI elements, high contrast, cyber aesthetic",
     "Cyber Promo": "aggressive digital aesthetic, glitch effects, bold typography, high energy, neon green and black, futuristic HUD",
     "Premium Black & Gold": "luxurious black texture background, metallic gold accents, serif typography, elegant lighting, premium product showcase",
     "Oferta Explosiva": "vibrant red and yellow, dynamic motion blur, 3D particles, impact text, exciting atmosphere",
@@ -115,7 +117,10 @@ const carouselSchema: Schema = {
           title: { type: Type.STRING },
           content: { type: Type.STRING },
           visualDescription: { type: Type.STRING },
-          imagePrompt: { type: Type.STRING, description: "Prompt visual fotográfico completo. Use termos como '8k', 'cinematic lighting', 'depth of field'." },
+          imagePrompt: { 
+              type: Type.STRING, 
+              description: "Prompt visual EXTREMAMENTE DETALHADO em Inglês. Deve incluir: Descrição da cena + Estilo Visual (do mapa) + Iluminação (ex: cinematic, volumetric) + Detalhes técnicos (8k, depth of field, ray tracing)." 
+          },
           layoutSuggestion: { 
               type: Type.STRING, 
               enum: [
@@ -145,7 +150,7 @@ const creativeSchema: Schema = {
                     id: { type: Type.INTEGER },
                     conceptTitle: { type: Type.STRING },
                     marketingAngle: { type: Type.STRING },
-                    visualPrompt: { type: Type.STRING, description: "Prompt visual para gerar uma imagem DE FUNDO. Deve ter espaço negativo para texto." },
+                    visualPrompt: { type: Type.STRING, description: "Prompt visual para gerar uma imagem DE FUNDO. Deve incluir termos como '8k', 'cinematic lighting', 'depth of field'." },
                     colorPaletteSuggestion: { type: Type.STRING, description: "CSS Linear Gradient valid string" },
                     fontStyle: { type: Type.STRING, enum: ['sans', 'serif', 'mono', 'display'] },
                     layoutMode: { type: Type.STRING, enum: ['centered', 'left-aligned', 'bold-frame'] }
@@ -189,12 +194,15 @@ export const generateSocialImage = async (prompt: string, aspectRatio: '1:1' | '
     const ai = new GoogleGenAI({ apiKey });
 
     try {
-        const enhancedPrompt = `High quality, photorealistic or 3D render, trending on artstation. ${prompt}`;
-        
+        // Enforcing Quality Modifiers if not present
+        const finalPrompt = prompt.toLowerCase().includes('8k') 
+            ? prompt 
+            : `${prompt}, ${QUALITY_MODIFIERS}`;
+
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image', 
             contents: {
-                parts: [{ text: enhancedPrompt }]
+                parts: [{ text: finalPrompt }]
             },
             config: {
                 imageConfig: {
@@ -218,6 +226,7 @@ export const generateSocialImage = async (prompt: string, aspectRatio: '1:1' | '
 export interface EditImageOptions {
     usePro?: boolean;
     upscale?: boolean;
+    expandToStory?: boolean; // New for outpainting
 }
 
 export const editSocialImage = async (
@@ -233,7 +242,7 @@ export const editSocialImage = async (
     // MODEL SELECTION LOGIC
     // 'gemini-3-pro-image-preview' corresponds to "Nano Banana Pro" / High Quality
     // 'gemini-2.5-flash-image' corresponds to "Flash" / Standard
-    const modelName = options?.usePro || options?.upscale 
+    const modelName = options?.usePro || options?.upscale || options?.expandToStory
         ? 'gemini-3-pro-image-preview' 
         : 'gemini-2.5-flash-image';
 
@@ -242,6 +251,11 @@ export const editSocialImage = async (
     if (options?.upscale) {
         config.imageConfig = {
             imageSize: '2K' // Only available in Pro model
+        };
+    }
+    if (options?.expandToStory) {
+        config.imageConfig = {
+            aspectRatio: '9:16' // Force story ratio
         };
     }
 
@@ -262,7 +276,13 @@ export const editSocialImage = async (
         
         if (options?.upscale) {
             instruction += " Upscale to high resolution, 4k highly detailed, sharpen details.";
-        } else {
+        } 
+        
+        if (options?.expandToStory) {
+            instruction += " OUTPAINTING TASK: Expand this square image into a vertical 9:16 format (Story). Generate the missing top and bottom parts seamlessly to match the existing background scene. Keep the main subject centered.";
+        }
+
+        if (!options?.upscale && !options?.expandToStory) {
              instruction += " High quality.";
         }
 
@@ -356,7 +376,8 @@ export const generateVeoVideo = async (prompt: string, style: MotionStyle = Moti
 
         const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
         if (videoUri) {
-            return `${videoUri}&key=${apiKey}`;
+             const separator = videoUri.includes('?') ? '&' : '?';
+             return `${videoUri}${separator}key=${apiKey}`;
         }
         return null;
 
@@ -366,7 +387,92 @@ export const generateVeoVideo = async (prompt: string, style: MotionStyle = Moti
     }
 };
 
-export const generateCarousel = async (input: string, config: GenerationConfig): Promise<CarouselData | null> => {
+// NEW: Generate Veo from Image (Creative Director Persona)
+export const generateVeoFromImage = async (imageBase64: string, description: string): Promise<string | null> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+    const ai = new GoogleGenAI({ apiKey });
+
+    const cleanBase64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+
+    // Director Persona Prompt Construction
+    const prompt = `
+    Agente: Diretor de Criação Cinematográfica.
+    
+    Ação: Animar esta imagem estática em um vídeo de 8 segundos.
+    
+    Descrição da Cena: "${description}"
+    
+    Diretrizes:
+    - Mantenha extrema fidelidade visual à imagem fornecida.
+    - Crie um movimento sutil e cinematográfico (slow motion, parallax, ou iluminação dinâmica).
+    - O vídeo deve parecer uma extensão viva da imagem.
+    - Foco em realismo, fluidez e alto impacto visual.
+    `;
+
+    try {
+        let operation = await ai.models.generateVideos({
+            model: 'veo-3.1-fast-generate-preview',
+            prompt: prompt,
+            image: {
+                imageBytes: cleanBase64,
+                mimeType: 'image/png' // Assuming PNG
+            },
+            config: {
+                numberOfVideos: 1,
+                resolution: '720p',
+                aspectRatio: '16:9' // Default cinematic aspect ratio
+            }
+        });
+
+        while (!operation.done) {
+            await new Promise(resolve => setTimeout(resolve, 5000)); 
+            operation = await ai.operations.getVideosOperation({operation: operation});
+        }
+
+        const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+        if (videoUri) {
+             const separator = videoUri.includes('?') ? '&' : '?';
+             return `${videoUri}${separator}key=${apiKey}`;
+        }
+        return null;
+
+    } catch (error) {
+        console.error("Error generating Veo from Image:", error);
+        throw error;
+    }
+}
+
+// NEW: Research Agent using Google Search
+export const researchTopic = async (topic: string, audience?: string): Promise<{ text: string, sources: string[] }> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return { text: "", sources: [] };
+    const ai = new GoogleGenAI({ apiKey });
+
+    const prompt = `Pesquise informações relevantes, dados, estatísticas recentes e tendências sobre: "${topic}"${audience ? ` focado no público: ${audience}` : ''}. Traga pontos chaves de autoridade.`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: prompt,
+            config: {
+                tools: [{ googleSearch: {} }]
+            }
+        });
+        
+        const text = response.text || "";
+        const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+            ?.map((c: any) => c.web?.uri)
+            .filter((u: string) => !!u) || [];
+
+        return { text, sources };
+    } catch (e) {
+        console.error("Research failed", e);
+        return { text: "", sources: [] };
+    }
+}
+
+export const generateCarousel = async (input: string, config: GenerationConfig, researchContext?: string): Promise<CarouselData | null> => {
     const apiKey = getApiKey();
     if (!apiKey) return null;
     const ai = new GoogleGenAI({ apiKey });
@@ -377,47 +483,46 @@ export const generateCarousel = async (input: string, config: GenerationConfig):
     const selectedStyleName = config.style;
     const styleDescription = STYLE_PROMPT_MAP[selectedStyleName] || `Visual style: ${selectedStyleName}`;
 
-    let visualInstructionBlock = "";
-    if (config.style === 'Personalizado (Prompt)' && config.customStylePrompt) {
-        visualInstructionBlock = `
-        VISUAL PERSONALIZADO: "${config.customStylePrompt}"
-        `;
-    } else {
-        visualInstructionBlock = `
-        ESTILO VISUAL SELECIONADO: "${selectedStyleName}"
-        DIRETRIZES DE DESIGN ESTRITAS: ${styleDescription}
-        Aplique esses conceitos visuais (iluminação, textura, cores) em TODOS os 'imagePrompt'.
+    // CONCISE VISUAL INSTRUCTIONS
+    const visualInstructionBlock = (config.style === 'Personalizado (Prompt)' && config.customStylePrompt)
+        ? `CUSTOM VISUAL: "${config.customStylePrompt}"`
+        : `VISUAL STYLE: "${selectedStyleName}"\nSTYLE RULES: ${styleDescription}`;
+    
+    // BRAND VOICE CLONING INJECTION
+    let systemPersona = "ROLE: Expert Social Media Strategist & Art Director.";
+    if (config.brandVoiceSample) {
+        systemPersona = `
+        ROLE: Brand Voice Clone.
+        INSTRUCTION: Analyze and strictly mimic the tone, vocabulary, and emoji usage of this sample:
+        "${config.brandVoiceSample}"
         `;
     }
-    
+
     let instructions = `
-    VOCÊ É UM GERADOR DE CARROSSÉIS PROFISSIONAL.
-    
+    ${systemPersona}
+    TASK: Create a ${config.slideCount}-slide carousel.
+
+    [PROJECT DATA]
     INPUT: "${input}"
-    TOM DE VOZ: ${config.tone}
-    QUANTIDADE DE SLIDES: ${config.slideCount}
+    AUDIENCE: ${config.audience || 'General'}
+    GOAL: ${config.goal}
+    STRATEGY: ${marketingStrategy}
+    ${config.layoutMode ? `PREFERRED LAYOUT: ${config.layoutMode}` : ''}
+    ${researchContext ? `RESEARCH: ${researchContext}` : ''}
     
-    ---------------------------------------------------
-    1. ESTRUTURA E COPYWRITING
-    ---------------------------------------------------
-    OBJETIVO: ${config.goal}
-    ${config.layoutMode ? `FORMATO DE LAYOUT SUGERIDO: "${config.layoutMode}". Adapte o conteúdo para este formato.` : ''}
-    
-    ESTRATÉGIA DETALHADA:
-    ${marketingStrategy}
-    
-    ---------------------------------------------------
-    2. DESIGN & VISUAL (Fundamental)
-    ---------------------------------------------------
+    [VISUAL DIRECTIVES]
     ${visualInstructionBlock}
     
-    IMPORTANTE: No campo 'imagePrompt', descreva a imagem de fundo que será gerada pela IA. 
-    Use termos artísticos (ex: 'bokeh', 'cinematic', 'minimalist', 'neon glow').
+    CRITICAL FOR 'imagePrompt':
+    1. Start with the specific subject/scene description.
+    2. Incorporate the VISUAL STYLE.
+    3. MANDATORY: Append these quality boosters to EVERY prompt: "${QUALITY_MODIFIERS}".
+    4. Ensure the prompt describes a BACKGROUND scene (leave center/side empty for text overlay).
     `;
 
     if (config.referenceImage) {
         instructions += `
-    IMAGEM DE REFERÊNCIA: Combine a pessoa da foto com o ESTILO VISUAL definido acima.
+    REFERENCE IMAGE: Integrate the subject of the attached image into the generated backgrounds.
     `;
     }
 
@@ -439,7 +544,7 @@ export const generateCarousel = async (input: string, config: GenerationConfig):
             model: "gemini-3-flash-preview",
             contents: requestContent,
             config: {
-                systemInstruction: "Você é um Diretor de Arte AI especializado em Social Media.",
+                systemInstruction: "You are a specialized Social Media AI Agent.",
                 responseMimeType: "application/json",
                 responseSchema: carouselSchema,
                 temperature: 0.5 
@@ -463,28 +568,58 @@ export const generateCreativeVariations = async (topic: string, config: Generati
     const selectedStyleName = config.style;
     const styleDescription = STYLE_PROMPT_MAP[selectedStyleName] || `Visual style: ${selectedStyleName}`;
 
-    const promptText = `
-    ATUE COMO UM "AUTO DESIGNER AGENT".
+    let promptText = "";
     
-    TEMA: "${topic}".
-    ESTILO VISUAL ALVO: "${selectedStyleName}"
-    
-    DEFINIÇÃO VISUAL DO ESTILO (SIGA ESTRITAMENTE): 
-    "${styleDescription}"
-    
-    SUA MISSÃO:
-    1. Escolha a MELHOR 'fontStyle' (sans, serif, mono) para este estilo.
-    2. Crie uma 'colorPaletteSuggestion' que combine com a descrição visual.
-    3. GERE UM 'visualPrompt' OTIMIZADO PARA CRIAÇÃO DE IMAGEM (BACKGROUND).
-       - O prompt deve descrever EXATAMENTE o estilo "${selectedStyleName}".
-       - Deve pedir "espaço negativo" para o texto.
-    
-    Gere 6 variações ÚNICAS dentro deste estilo visual.
-    `;
+    // E-COMMERCE / PRODUCT MODE LOGIC
+    if (config.inputType === 'product' && config.productImageUrl) {
+         promptText = `
+         ATUE COMO UM AGENTE DE "PRODUCT PHOTOGRAPHY AI" E "MARKETING WRAPPER".
+         
+         PRODUTO: "${config.productName || topic}"
+         URL DE REFERÊNCIA (CONTEXTO): "${config.productUrl || 'N/A'}"
+         ESTILO VISUAL DO FUNDO: "${selectedStyleName}" (Baseado em: ${styleDescription})
+         
+         SUA MISSÃO:
+         1. Crie copys de venda persuasivas para este produto (marketingAngle, conceptTitle).
+         2. GERE UM 'visualPrompt' PARA O FUNDO DA FOTO DO PRODUTO.
+            - O prompt deve criar um Cenario/Podium/Fundo que combine com o produto.
+            - IMPORTANTE: O prompt DEVE pedir explicitamente um espaço vazio no CENTRO ou LEVEMENTE ACIMA para inserirmos a foto do produto depois.
+            - Exemplo: "A minimal geometric podium in a pastel pink room, soft lighting, empty space on top of podium for product placement, ${QUALITY_MODIFIERS}".
+            - NÃO GERE O PRODUTO NO PROMPT. GERE APENAS O CENÁRIO (BACKGROUND).
+            - SEMPRE INCLUA: "${QUALITY_MODIFIERS}".
+         
+         Gere 6 variações de ângulos de marketing e cenários para este produto.
+         `;
+    } else {
+        // STANDARD TOPIC MODE
+        promptText = `
+        ATUE COMO UM "AUTO DESIGNER AGENT".
+        
+        TEMA: "${topic}".
+        ESTILO VISUAL ALVO: "${selectedStyleName}"
+        
+        DEFINIÇÃO VISUAL DO ESTILO (SIGA ESTRITAMENTE): 
+        "${styleDescription}"
+        
+        SUA MISSÃO:
+        1. Escolha a MELHOR 'fontStyle' (sans, serif, mono) para este estilo.
+        2. Crie uma 'colorPaletteSuggestion' que combine com a descrição visual.
+        3. GERE UM 'visualPrompt' OTIMIZADO PARA CRIAÇÃO DE IMAGEM (BACKGROUND).
+           - O prompt deve descrever EXATAMENTE o estilo "${selectedStyleName}".
+           - Deve pedir "espaço negativo" para o texto.
+           - OBRIGATÓRIO: Termine todo prompt com: "${QUALITY_MODIFIERS}".
+        
+        Gere 6 variações ÚNICAS dentro deste estilo visual.
+        `;
+    }
 
     let requestContent: any = promptText;
-     if (config.referenceImage) {
-        const base64Data = config.referenceImage.includes(',') ? config.referenceImage.split(',')[1] : config.referenceImage;
+    
+    // Pass image context if available (Product Image or Reference Image)
+    const imageToAnalyze = (config.inputType === 'product' && config.productImageUrl) ? config.productImageUrl : config.referenceImage;
+
+     if (imageToAnalyze) {
+        const base64Data = imageToAnalyze.includes(',') ? imageToAnalyze.split(',')[1] : imageToAnalyze;
         requestContent = { 
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: base64Data } }, 
