@@ -4,151 +4,148 @@ import React from 'react';
 interface SidebarProps {
   onNavigate: (view: 'dashboard' | 'create' | 'creative' | 'motion' | 'crm' | 'projects' | 'finance' | 'team') => void;
   currentView: string;
-  isOpen: boolean; // Control visibility on mobile
-  onClose: () => void; // Close handler for mobile overlay
-  credits: number; // Dynamic credits
+  isOpen: boolean;
+  onClose: () => void;
+  credits: number;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView, isOpen, onClose, credits }) => {
   
-  // Base classes for sidebar container
   const sidebarClasses = `
-    absolute md:relative top-0 left-0 h-full w-[260px] 
-    bg-[#0f172a] md:bg-[#0f172a]/90 backdrop-blur-xl
-    border-r border-white/5 z-50 
-    transition-transform duration-300 ease-in-out flex flex-col
+    w-64 glass-panel flex-shrink-0 flex flex-col h-full border-r border-white/10 z-50
+    fixed md:relative transform transition-transform duration-300 ease-in-out
     ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
   `;
 
-  const navItemClass = (isActive: boolean) => `
-    flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium mb-1
-    ${isActive 
-        ? 'bg-gradient-to-r from-[#2563eb]/20 to-[#2563eb]/5 text-white border-l-2 border-[#2563eb]' 
-        : 'text-slate-400 hover:text-white hover:bg-white/5 border-l-2 border-transparent'}
-  `;
+  // Helper for active link styles from AgencyOS design
+  const getLinkClass = (viewName: string) => {
+      const isActive = currentView === viewName;
+      if (isActive) {
+          return "flex items-center gap-3 px-3 py-2.5 rounded-lg text-white font-medium shadow-lg shadow-purple-900/20 border border-white/10 bg-gradient-to-r from-purple-500/50 to-pink-500/50";
+      }
+      return "flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors group";
+  };
+
+  const getIconClass = (isActive: boolean, groupHoverClass: string) => {
+      return `w-5 text-center ${isActive ? '' : groupHoverClass}`;
+  };
 
   return (
     <>
         {/* Mobile Overlay */}
         {isOpen && (
             <div 
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
                 onClick={onClose}
             ></div>
         )}
 
         <aside className={sidebarClasses}>
-          {/* Sidebar Header */}
-          <div className="p-6 pb-2 flex items-center gap-3">
-             <div className="w-8 h-8 rounded bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                <span className="material-symbols-outlined text-white text-lg">grid_view</span>
-             </div>
-             <div>
-                <h1 className="font-bold text-white text-base leading-none">AgencyOS</h1>
-                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Pro Workspace</span>
-             </div>
-             <button onClick={onClose} className="md:hidden ml-auto text-white/50 hover:text-white">
-                <i className="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          <div className="px-6 py-4">
-              <div className="bg-[#1e293b] rounded-xl p-3 border border-white/5">
-                  <div className="flex items-center gap-3 mb-2">
-                      <img src="https://ui-avatars.com/api/?name=Lucas+Dev&background=random" className="w-8 h-8 rounded-full" alt="User" />
-                      <div className="flex flex-col">
-                          <span className="text-xs font-bold text-white">Lucas Dev</span>
-                          <span className="text-[10px] text-slate-400">Admin</span>
-                      </div>
-                  </div>
-              </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 flex flex-col px-4 overflow-y-auto custom-scrollbar">
-            
-            <div className="mb-6">
-                <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Gestão</p>
-                <button 
-                    onClick={() => { onNavigate('dashboard'); onClose(); }}
-                    className={navItemClass(currentView === 'dashboard')}
-                >
-                    <span className="material-symbols-outlined text-[20px]">dashboard</span>
-                    <span>Dashboard</span>
-                </button>
-                <button 
-                    onClick={() => { onNavigate('projects'); onClose(); }}
-                    className={navItemClass(currentView === 'projects')}
-                >
-                    <span className="material-symbols-outlined text-[20px]">folder_open</span>
-                    <span>Projetos</span>
-                    <span className="ml-auto bg-amber-500/20 text-amber-400 text-[10px] px-1.5 rounded">5</span>
-                </button>
-                <button 
-                    onClick={() => { onNavigate('crm'); onClose(); }}
-                    className={navItemClass(currentView === 'crm')}
-                >
-                    <span className="material-symbols-outlined text-[20px]">group</span>
-                    <span>CRM & Leads</span>
-                </button>
-                <button 
-                    onClick={() => { onNavigate('finance'); onClose(); }}
-                    className={navItemClass(currentView === 'finance')}
-                >
-                    <span className="material-symbols-outlined text-[20px]">attach_money</span>
-                    <span>Financeiro</span>
-                </button>
-                 <button 
-                    onClick={() => { onNavigate('team'); onClose(); }}
-                    className={navItemClass(currentView === 'team')}
-                >
-                    <span className="material-symbols-outlined text-[20px]">diversity_3</span>
-                    <span>Equipe</span>
+            {/* Logo Area */}
+            <div className="p-6 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <i className="fa-solid fa-layer-group text-white text-sm"></i>
+                </div>
+                <span className="font-bold text-lg tracking-wide text-white">AgencyOS</span>
+                <button onClick={onClose} className="md:hidden ml-auto text-white/50 hover:text-white">
+                    <i className="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <div>
-                <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Estúdio Criativo (IA)</p>
-                <button 
-                    onClick={() => { onNavigate('create'); onClose(); }}
-                    className={navItemClass(currentView === 'create')}
-                >
-                    <span className="material-symbols-outlined text-[20px] text-fuchsia-400">view_carousel</span>
-                    <span>Carrossel Glass</span>
-                </button>
-
-                <button 
-                    onClick={() => { onNavigate('creative'); onClose(); }}
-                    className={navItemClass(currentView === 'creative')}
-                >
-                    <span className="material-symbols-outlined text-[20px] text-purple-400">photo_library</span>
-                    <span>Criativos Ads</span>
-                </button>
-
-                <button 
-                    onClick={() => { onNavigate('motion'); onClose(); }}
-                    className={navItemClass(currentView === 'motion')}
-                >
-                    <span className="material-symbols-outlined text-[20px] text-cyan-400">movie_filter</span>
-                    <span>Motion Studio</span>
-                </button>
+            {/* User Profile Dropdown */}
+            <div className="px-4 mb-6">
+                <div className="glass-panel-light rounded-xl p-3 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
+                            <img alt="User Profile" className="w-full h-full object-cover" src="https://ui-avatars.com/api/?name=Lusse+Dev&background=random" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="font-medium text-white text-xs">Lusse Dev</span>
+                            <span className="text-[10px] text-gray-400">Admin</span>
+                        </div>
+                    </div>
+                    <i className="fa-solid fa-chevron-down text-gray-500 text-xs"></i>
+                </div>
             </div>
-          </nav>
 
-          {/* Sidebar Footer: Tokens */}
-          <div className="p-4 mt-auto border-t border-white/5 bg-[#0f172a]">
-            <div className="flex justify-between items-end mb-2">
-                <span className="text-xs text-slate-400 font-medium">Tokens IA</span>
-                <span className="text-[10px] text-emerald-400 font-mono font-bold">{credits} / 1000</span>
+            {/* Navigation */}
+            <nav className="flex-1 overflow-y-auto px-4 space-y-6 custom-scrollbar">
+                {/* Group: GESTÃO */}
+                <div>
+                    <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2 px-2">Gestão</h3>
+                    <ul className="space-y-1">
+                        <li>
+                            <button onClick={() => { onNavigate('dashboard'); onClose(); }} className={getLinkClass('dashboard')}>
+                                <i className={`fa-solid fa-grid-2 ${getIconClass(currentView === 'dashboard', '')}`}></i>
+                                Dashboard
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => { onNavigate('projects'); onClose(); }} className={getLinkClass('projects')}>
+                                <i className={`fa-regular fa-folder ${getIconClass(currentView === 'projects', 'group-hover:text-purple-400')}`}></i>
+                                Projetos <span className="ml-auto bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">4</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => { onNavigate('crm'); onClose(); }} className={getLinkClass('crm')}>
+                                <i className={`fa-solid fa-users ${getIconClass(currentView === 'crm', 'group-hover:text-purple-400')}`}></i>
+                                CRM & Leads
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => { onNavigate('finance'); onClose(); }} className={getLinkClass('finance')}>
+                                <i className={`fa-solid fa-dollar-sign ${getIconClass(currentView === 'finance', 'group-hover:text-purple-400')}`}></i>
+                                Financeiro
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => { onNavigate('team'); onClose(); }} className={getLinkClass('team')}>
+                                <i className={`fa-solid fa-user-group ${getIconClass(currentView === 'team', 'group-hover:text-purple-400')}`}></i>
+                                Equipe
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* Group: ESTÚDIO CRIATIVO */}
+                <div>
+                    <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2 px-2">Estúdio Criativo (IA)</h3>
+                    <ul className="space-y-1">
+                        <li>
+                            <button onClick={() => { onNavigate('create'); onClose(); }} className={getLinkClass('create')}>
+                                <i className={`fa-solid fa-layer-group ${getIconClass(currentView === 'create', 'group-hover:text-purple-400')}`}></i>
+                                Carrossel Glass
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => { onNavigate('creative'); onClose(); }} className={getLinkClass('creative')}>
+                                <i className={`fa-regular fa-image ${getIconClass(currentView === 'creative', 'group-hover:text-purple-400')}`}></i>
+                                Criativos Ads
+                            </button>
+                        </li>
+                        <li>
+                            <button onClick={() => { onNavigate('motion'); onClose(); }} className={getLinkClass('motion')}>
+                                <i className={`fa-solid fa-video ${getIconClass(currentView === 'motion', 'group-hover:text-purple-400')}`}></i>
+                                Motion Studio
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            {/* Credits Footer */}
+             <div className="p-4 mt-auto border-t border-white/10">
+                <div className="flex justify-between items-end mb-2">
+                    <span className="text-xs text-gray-400 font-medium">Tokens IA</span>
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold">{credits} / 1000</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                        style={{ width: `${(credits / 1000) * 100}%` }}
+                    ></div>
+                </div>
             </div>
-            {/* Progress Bar */}
-            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div 
-                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
-                    style={{ width: `${(credits / 1000) * 100}%` }}
-                ></div>
-            </div>
-          </div>
         </aside>
     </>
   );

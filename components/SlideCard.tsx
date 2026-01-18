@@ -186,8 +186,6 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
 
   const renderContent = () => {
     const editableClass = "outline-none focus:bg-white/10 rounded px-1 border border-transparent focus:border-white/20 transition-colors cursor-text relative z-20";
-    // ... (rest of renderContent logic remains mostly same, simplified for brevity in this response but ensures layout logic is kept)
-    // Simplified version of content rendering logic for brevity, full logic assumed present
     return (
         <div className="h-full w-full relative flex flex-col p-8 z-10 pointer-events-none">
              <div className="pointer-events-auto">
@@ -218,7 +216,12 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
   const hasPersonRef = slide.imagePrompt.toLowerCase().includes("person") || slide.imagePrompt.toLowerCase().includes("reference") || (referenceImage !== undefined);
 
   if (isMobileMode) {
-      return <div className="relative flex-shrink-0 mx-2">Mobile View...</div> // Simplified for this output
+      return (
+          <div className="relative flex-shrink-0 w-[300px] h-[550px] bg-black rounded-3xl border-4 border-gray-800 overflow-hidden mx-auto shadow-2xl">
+              {renderBackgroundDecor()}
+              {renderContent()}
+          </div>
+      )
   }
 
   return (
@@ -229,7 +232,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
             ref={setNodeRef}
             style={dndStyle}
             id={id}
-            className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:shadow-2xl hover:z-10 ${getContainerStyle()}`}
+            className={`group relative flex-shrink-0 w-[300px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl border transition-all duration-300 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] hover:z-10 ${getContainerStyle()}`}
         >
         
         {/* DRAG HANDLE */}
@@ -237,7 +240,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
             <div 
                 {...attributes} 
                 {...listeners} 
-                className="absolute top-0 left-0 right-0 h-8 z-50 cursor-grab active:cursor-grabbing hover:bg-white/5 transition-colors"
+                className="absolute top-0 left-0 right-0 h-10 z-50 cursor-grab active:cursor-grabbing hover:bg-gradient-to-b hover:from-black/40 hover:to-transparent transition-all"
                 title="Arrastar para reordenar"
             ></div>
         )}
@@ -249,8 +252,8 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
 
         {/* CANVAS CONTROLS (ZOOM SLIDER) - Only in Edit Mode */}
         {isEditMode && (
-            <div className="absolute bottom-16 left-4 right-4 z-50 bg-black/80 backdrop-blur-md rounded-xl p-3 border border-white/20 flex flex-col gap-2">
-                <div className="flex justify-between text-[10px] text-white font-bold uppercase">
+            <div className="absolute bottom-16 left-4 right-4 z-50 bg-[#1e1b2e]/90 backdrop-blur-xl rounded-xl p-4 border border-white/20 flex flex-col gap-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex justify-between text-[10px] text-slate-300 font-bold uppercase tracking-wider">
                     <span>Zoom</span>
                     <span>{Math.round(bgScale * 100)}%</span>
                 </div>
@@ -261,14 +264,14 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                     step="0.1" 
                     value={bgScale} 
                     onChange={(e) => setBgScale(parseFloat(e.target.value))}
-                    className="w-full accent-primary h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                    className="w-full accent-purple-500 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                 />
-                <p className="text-[9px] text-slate-400 text-center mt-1">Arraste a imagem para mover</p>
+                <p className="text-[9px] text-slate-500 text-center font-medium">Arraste a imagem para mover</p>
                 <button 
                     onClick={() => setIsEditMode(false)}
-                    className="w-full bg-primary text-white text-xs font-bold py-1.5 rounded-lg mt-1"
+                    className="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 rounded-lg transition-colors"
                 >
-                    Concluir
+                    Concluir Ajuste
                 </button>
             </div>
         )}
@@ -276,19 +279,19 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
         {/* FOOTER INFO - HIDDEN DURING EXPORT */}
         <div 
             data-html2canvas-ignore="true"
-            className={`absolute bottom-0 left-0 right-0 p-3 z-30 transform translate-y-[85%] group-hover:translate-y-0 transition-transform duration-300 border-t bg-black/90 backdrop-blur-xl border-white/10 ${isEditMode ? 'hidden' : ''}`}
+            className={`absolute bottom-0 left-0 right-0 p-3 z-30 transform translate-y-[85%] group-hover:translate-y-0 transition-transform duration-300 border-t bg-[#1e1b2e]/95 backdrop-blur-xl border-white/10 ${isEditMode ? 'hidden' : ''}`}
         >
             <div className="flex flex-col gap-1">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${hasPersonRef ? 'bg-amber-500/20 text-amber-400' : 'bg-primary/20 text-primary'}`}>
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${hasPersonRef ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
                             {slide.layoutSuggestion.split(' ')[0]} 
                         </span>
                         <span className="text-[9px] text-slate-400 font-bold truncate max-w-[100px]">{style}</span>
                     </div>
                     <span className="material-symbols-outlined text-[14px] opacity-50 group-hover:opacity-0 transition-opacity text-white">expand_less</span>
                 </div>
-                <p className="text-[9px] font-mono leading-tight text-slate-400 mt-2 line-clamp-3 hover:line-clamp-none transition-all cursor-text select-text">
+                <p className="text-[9px] font-mono leading-tight text-slate-500 mt-2 line-clamp-3 hover:line-clamp-none transition-all cursor-text select-text bg-black/20 p-2 rounded">
                     {slide.imagePrompt}
                 </p>
             </div>
@@ -297,11 +300,11 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
         {/* CONTROLS - HIDDEN DURING EXPORT */}
         <div 
             data-html2canvas-ignore="true"
-            className={`absolute top-3 right-3 z-40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2 ${isEditMode ? 'hidden' : ''}`}
+            className={`absolute top-3 right-3 z-40 opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col gap-2 ${isEditMode ? 'hidden' : ''}`}
         >
             <button 
                     onClick={(e) => { e.stopPropagation(); setIsEditMode(true); }}
-                    className="bg-black/60 hover:bg-white hover:text-black text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
+                    className="size-8 bg-[#1e1b2e]/80 hover:bg-[#1e1b2e] text-white rounded-lg backdrop-blur border border-white/10 shadow-lg transition-all flex items-center justify-center hover:scale-105"
                     title="Ajustar Imagem (Pan/Zoom)"
             >
                 <span className="material-symbols-outlined text-[18px]">transform</span>
@@ -311,10 +314,10 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
                  <button 
                     onClick={(e) => { e.stopPropagation(); onRegenerateImage(); }}
                     disabled={isRegenerating}
-                    className="bg-black/60 hover:bg-white hover:text-black text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative disabled:opacity-50 disabled:cursor-wait"
+                    className="size-8 bg-[#1e1b2e]/80 hover:bg-[#1e1b2e] text-white rounded-lg backdrop-blur border border-white/10 shadow-lg transition-all flex items-center justify-center hover:scale-105 disabled:opacity-50"
                     title="Regenerar Fundo (Variação)"
                 >
-                    <span className={`material-symbols-outlined text-[18px] ${isRegenerating ? 'animate-spin' : ''}`}>
+                    <span className={`material-symbols-outlined text-[18px] ${isRegenerating ? 'animate-spin text-yellow-400' : ''}`}>
                         {isRegenerating ? 'sync' : 'refresh'}
                     </span>
                 </button>
@@ -323,7 +326,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
             <button 
                     onClick={(e) => { e.stopPropagation(); handleSpeak(); }}
                     disabled={isSpeaking}
-                    className="bg-black/60 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative disabled:opacity-50"
+                    className="size-8 bg-[#1e1b2e]/80 hover:bg-[#1e1b2e] text-white rounded-lg backdrop-blur border border-white/10 shadow-lg transition-all flex items-center justify-center hover:scale-105 disabled:opacity-50"
                     title="Ouvir Slide (TTS)"
             >
                 <span className={`material-symbols-outlined text-[18px] ${isSpeaking ? 'animate-pulse text-green-400' : ''}`}>volume_up</span>
@@ -332,7 +335,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
             <button 
                     onClick={(e) => { e.stopPropagation(); handleMagicRewrite(); }}
                     disabled={isRewriting}
-                    className="bg-primary/80 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative disabled:opacity-50 disabled:cursor-wait"
+                    className="size-8 bg-gradient-to-br from-purple-600 to-pink-600 hover:brightness-110 text-white rounded-lg backdrop-blur shadow-lg transition-all flex items-center justify-center hover:scale-105 disabled:opacity-50"
                     title="Reescrever com Mágica"
             >
                 <span className={`material-symbols-outlined text-[18px] ${isRewriting ? 'animate-spin' : ''}`}>
@@ -342,7 +345,7 @@ const SlideCard: React.FC<SlideCardProps> = ({ slide, totalSlides, style, refere
 
             <button 
                     onClick={(e) => { e.stopPropagation(); cycleLayout(); }}
-                    className="bg-black/60 hover:bg-primary text-white p-2 rounded-lg backdrop-blur border border-white/10 shadow-lg transition-colors group/btn relative"
+                    className="size-8 bg-[#1e1b2e]/80 hover:bg-[#1e1b2e] text-white rounded-lg backdrop-blur border border-white/10 shadow-lg transition-all flex items-center justify-center hover:scale-105"
                     title="Trocar Layout"
                 >
                 <span className="material-symbols-outlined text-[18px]">shuffle</span>

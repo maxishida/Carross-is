@@ -31,7 +31,7 @@ const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ brandColo
             // Calculate position specifically relative to viewport to avoid scroll issues
             // but we use fixed positioning for the toolbar
             setPosition({
-                top: rect.top - 50, // 50px above selection
+                top: rect.top - 60, // Slightly higher for better visibility
                 left: rect.left + (rect.width / 2) // Center horizontally
             });
             setIsVisible(true);
@@ -43,7 +43,6 @@ const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ brandColo
 
     const execFormat = (command: string, value: string | undefined = undefined) => {
         document.execCommand(command, false, value);
-        // Keep focus? Usually execCommand keeps it, but sometimes we might need to re-select
     };
 
     if (!isVisible || !position) return null;
@@ -51,7 +50,7 @@ const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ brandColo
     return (
         <div 
             ref={toolbarRef}
-            className="fixed z-[9999] flex items-center gap-1 p-1.5 rounded-lg bg-[#1e293b] border border-white/20 shadow-xl animate-in fade-in zoom-in-95 duration-200"
+            className="fixed z-[9999] flex items-center gap-1 p-2 rounded-xl bg-[#1e1b2e]/95 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50 animate-in fade-in zoom-in-95 duration-200"
             style={{ 
                 top: position.top, 
                 left: position.left, 
@@ -61,36 +60,39 @@ const FloatingFormatToolbar: React.FC<FloatingFormatToolbarProps> = ({ brandColo
         >
             <button 
                 onClick={() => execFormat('bold')}
-                className="p-1.5 rounded hover:bg-white/10 text-white transition-colors"
+                className="size-8 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors flex items-center justify-center"
                 title="Negrito"
             >
                 <span className="material-symbols-outlined text-[18px]">format_bold</span>
             </button>
             <button 
                 onClick={() => execFormat('italic')}
-                className="p-1.5 rounded hover:bg-white/10 text-white transition-colors"
+                className="size-8 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors flex items-center justify-center"
                 title="Itálico"
             >
                 <span className="material-symbols-outlined text-[18px]">format_italic</span>
             </button>
-            <div className="w-px h-4 bg-white/20 mx-1"></div>
+            
+            <div className="w-px h-4 bg-white/10 mx-1"></div>
+            
             <button 
                 onClick={() => execFormat('foreColor', brandColor)}
-                className="p-1.5 rounded hover:bg-white/10 text-white transition-colors flex items-center gap-1"
+                className="size-8 rounded-lg hover:bg-white/10 text-white transition-colors flex items-center justify-center relative group"
                 title="Cor da Marca"
             >
                 <span className="material-symbols-outlined text-[18px]" style={{color: brandColor}}>format_color_text</span>
+                <div className="absolute -bottom-1 w-1 h-1 rounded-full" style={{backgroundColor: brandColor}}></div>
             </button>
              <button 
                 onClick={() => execFormat('foreColor', '#ffffff')}
-                className="p-1.5 rounded hover:bg-white/10 text-white transition-colors"
+                className="size-8 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors flex items-center justify-center"
                 title="Cor Branca (Reset)"
             >
                 <span className="material-symbols-outlined text-[18px]">format_clear</span>
             </button>
             
             {/* Arrow down */}
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#1e293b]"></div>
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#1e1b2e]"></div>
         </div>
     );
 };

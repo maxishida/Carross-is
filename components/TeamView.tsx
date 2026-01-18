@@ -12,17 +12,17 @@ const TeamView: React.FC = () => {
 
     const getStatusColor = (status: TeamMember['status']) => {
         switch(status) {
-            case 'online': return 'bg-emerald-500';
-            case 'busy': return 'bg-red-500';
+            case 'online': return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+            case 'busy': return 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]';
             case 'offline': return 'bg-slate-500';
         }
     };
 
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-[#0f172a] text-slate-200">
-            <header className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-[#1e293b]/50">
+        <div className="flex flex-col h-full overflow-hidden text-slate-200">
+            <header className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-transparent backdrop-blur-sm shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
                         <span className="material-symbols-outlined text-white text-lg">diversity_3</span>
                     </div>
                     <div>
@@ -30,7 +30,7 @@ const TeamView: React.FC = () => {
                         <p className="text-[10px] text-slate-400">Gestão de talentos e capacidade</p>
                     </div>
                 </div>
-                <button className="bg-white/5 hover:bg-white/10 border border-white/10 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all">
+                <button className="glass-panel-light hover:bg-white/10 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all">
                     <span className="material-symbols-outlined text-sm">person_add</span>
                     Convidar
                 </button>
@@ -39,16 +39,16 @@ const TeamView: React.FC = () => {
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {team.map(member => (
-                        <div key={member.id} className="bg-[#1e293b] rounded-xl border border-white/5 p-6 flex flex-col items-center text-center hover:border-white/20 transition-all group">
+                        <div key={member.id} className="glass-panel rounded-xl p-6 flex flex-col items-center text-center hover:border-white/20 hover:bg-white/5 transition-all group relative overflow-hidden">
                             <div className="relative mb-3">
-                                <img src={member.avatar} alt={member.name} className="w-20 h-20 rounded-full border-4 border-[#0f172a]" />
+                                <img src={member.avatar} alt={member.name} className="w-20 h-20 rounded-full border-4 border-white/10 group-hover:border-white/20 transition-colors" />
                                 <div className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-[#1e293b] ${getStatusColor(member.status)}`}></div>
                             </div>
                             
                             <h3 className="font-bold text-white text-lg">{member.name}</h3>
                             <p className="text-sm text-slate-400 mb-4">{member.role}</p>
                             
-                            <div className="w-full bg-[#0f172a] rounded-lg p-3 flex flex-col gap-3">
+                            <div className="w-full bg-black/30 rounded-lg p-3 flex flex-col gap-3 border border-white/5">
                                 <div className="flex justify-between text-xs text-slate-400">
                                     <span>Projetos Ativos</span>
                                     <span className="text-white font-bold">{member.activeProjects}</span>
@@ -68,7 +68,7 @@ const TeamView: React.FC = () => {
                                 </div>
                             </div>
 
-                            <button className="mt-4 w-full py-2 rounded-lg border border-white/10 hover:bg-white/5 text-xs font-bold text-slate-300 transition-colors">
+                            <button className="mt-4 w-full py-2 rounded-lg border border-white/10 hover:bg-white/10 text-xs font-bold text-slate-300 transition-colors">
                                 Ver Perfil
                             </button>
                         </div>

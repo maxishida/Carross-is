@@ -42,7 +42,7 @@ function App() {
           case 'create':
               return (
                   <ErrorBoundary>
-                    <div className="h-full overflow-y-auto custom-scrollbar p-6 bg-[#0f0518]">
+                    <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
                         <GeneratorView 
                             onBack={() => setCurrentView('dashboard')} 
                         />
@@ -52,7 +52,7 @@ function App() {
           case 'creative':
               return (
                   <ErrorBoundary>
-                    <div className="h-full overflow-y-auto custom-scrollbar p-6 bg-[#0f0518]">
+                    <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
                         <CreativeGeneratorView onBack={() => setCurrentView('dashboard')} />
                     </div>
                   </ErrorBoundary>
@@ -60,7 +60,7 @@ function App() {
           case 'motion':
               return (
                   <ErrorBoundary>
-                    <div className="h-full overflow-y-auto custom-scrollbar p-6 bg-[#0f0518]">
+                    <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
                         <MotionGeneratorView onBack={() => setCurrentView('dashboard')} />
                     </div>
                   </ErrorBoundary>
@@ -100,37 +100,44 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-full flex items-center justify-center bg-[#020617] relative overflow-hidden">
+    <div className="flex h-[100dvh] w-full text-sm relative overflow-hidden bg-transparent">
+      {/* Background Effects */}
+      <div className="bg-orb orb-1"></div>
+      <div className="bg-orb orb-2"></div>
+      <div className="bg-orb orb-3"></div>
+
       {/* Global Toast Container */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      {/* Main Container */}
-      <main className="w-full h-full flex overflow-hidden relative">
+      {/* Sidebar */}
+      <Sidebar 
+        onNavigate={(view: any) => setCurrentView(view)} 
+        currentView={currentView}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        credits={credits}
+      />
+
+      {/* Main Content Wrapper */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
           
-          {/* Sidebar */}
-          <Sidebar 
-            onNavigate={(view: any) => setCurrentView(view)} 
-            currentView={currentView}
-            isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
-            credits={credits}
-          />
+          {/* Mobile Menu Trigger (Only visible on small screens) */}
+          <div className="md:hidden p-4 flex items-center justify-between border-b border-white/5 bg-white/5 backdrop-blur-md z-30 shrink-0">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setIsSidebarOpen(true)} className="text-white p-2 rounded-lg hover:bg-white/10">
+                    <i className="fa-solid fa-bars"></i>
+                </button>
+                <span className="font-bold text-white">AgencyOS</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs">
+                    LD
+              </div>
+          </div>
 
-          {/* Main Content Area */}
-          <section className="flex-1 flex flex-col relative overflow-hidden bg-[#0f172a]">
-            {/* Render Content */}
-            <div className="relative z-10 w-full h-full flex flex-col">
-                {/* Mobile Menu Trigger (Only visible on small screens) */}
-                <div className="md:hidden p-4 flex items-center gap-2 bg-[#1e293b] border-b border-white/5">
-                    <button onClick={() => setIsSidebarOpen(true)} className="text-white p-2 rounded-lg hover:bg-white/10">
-                        <i className="fa-solid fa-bars"></i>
-                    </button>
-                    <span className="font-bold text-white">AgencyOS</span>
-                </div>
-
-                {renderContent()}
-            </div>
-          </section>
+          {/* View Content */}
+          <div className="flex-1 overflow-hidden relative z-10">
+            {renderContent()}
+          </div>
       </main>
     </div>
   );

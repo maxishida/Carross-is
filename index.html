@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Painel de Experiências</title>
+    <title>AgencyOS Dashboard</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,25 +21,17 @@
                         display: ['Space Grotesk', 'sans-serif'],
                     },
                     colors: {
-                        glass: {
-                            border: 'rgba(255, 255, 255, 0.1)',
-                            surface: 'rgba(255, 255, 255, 0.05)',
-                            highlight: 'rgba(255, 255, 255, 0.15)',
+                        agency: {
+                            dark: '#0f0c1d',
+                            purple: '#7c3aed',
+                            pink: '#d946ef',
+                            glass: 'rgba(255, 255, 255, 0.03)',
+                            glassBorder: 'rgba(255, 255, 255, 0.08)',
                         },
-                        accent: {
-                            purple: '#F72585',
-                            cyan: '#4CC9F0',
-                            deep: '#240046'
-                        },
-                        // Mapping old colors to new palette or keeping for compatibility
-                        "primary": "#F72585", 
-                        "secondary": "#4CC9F0",
-                        "background-dark": "#0f0518",
-                        "surface-dark": "#1a0b2e",
-                        "neon-cyan": "#4CC9F0",
-                    },
-                    backgroundImage: {
-                        'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                        // Manter compatibilidade com componentes antigos
+                        "primary": "#d946ef", 
+                        "secondary": "#7c3aed",
+                        "background-dark": "#09090b",
                     }
                 }
             }
@@ -48,27 +40,31 @@
     <style type="text/tailwindcss">
         @layer utilities {
             .glass-panel {
-                @apply backdrop-blur-2xl border border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)];
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
-                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.03);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             }
-            .glass-card {
-                @apply transition-all duration-300 border border-white/10;
+
+            .glass-panel-light {
+                background: rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
             }
-            .glass-card:hover {
-                transform: translateY(-4px);
-                border-color: rgba(255, 255, 255, 0.3);
-                box-shadow: 0 15px 40px -10px rgba(0,0,0,0.6);
+
+            .glass-input {
+                background: rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: white;
             }
-            .nav-item-active {
-                background: linear-gradient(90deg, rgba(247, 37, 133, 0.25) 0%, rgba(247, 37, 133, 0.0) 100%);
-                border-left: 3px solid #F72585;
-                border-top: 1px solid rgba(255,255,255,0.1);
-                border-bottom: 1px solid rgba(255,255,255,0.1);
-                box-shadow: -5px 0 20px rgba(247, 37, 133, 0.3);
+            .glass-input:focus {
+                outline: none;
+                border-color: #d946ef;
+                box-shadow: 0 0 15px rgba(217, 70, 239, 0.2);
             }
             
-            /* Custom Scrollbar for the new design */
+            /* Custom Scrollbar */
             .custom-scrollbar::-webkit-scrollbar {
                 width: 6px;
                 height: 6px;
@@ -77,45 +73,36 @@
                 background: transparent; 
             }
             .custom-scrollbar::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, 0.1); 
-                border-radius: 10px;
+                background: rgba(255, 255, 255, 0.2); 
+                border-radius: 3px;
             }
             .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                background: rgba(255, 255, 255, 0.2); 
+                background: rgba(255, 255, 255, 0.3); 
             }
         }
         
         body {
-            margin: 0;
-            padding: 0;
-            background-color: #0f0518;
-            color: white;
+            background-color: #09090b;
+            background-image: radial-gradient(circle at 50% 0%, #1a1625, #09090b 80%);
+            color: #ffffff;
             overflow: hidden;
+            font-family: 'Inter', sans-serif;
         }
 
-        .mesh-background {
+        /* Ambient Background Orbs */
+        .bg-orb {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            background: 
-                radial-gradient(circle at 10% 20%, rgba(76, 201, 240, 0.4) 0%, transparent 40%),
-                radial-gradient(circle at 90% 10%, rgba(76, 201, 240, 0.3) 0%, transparent 40%),
-                radial-gradient(circle at 50% 50%, rgba(58, 12, 163, 0.6) 0%, transparent 60%),
-                radial-gradient(circle at 20% 80%, rgba(247, 37, 133, 0.4) 0%, transparent 50%),
-                radial-gradient(circle at 80% 90%, rgba(114, 9, 183, 0.5) 0%, transparent 50%),
-                linear-gradient(135deg, #0a0118 0%, #240046 100%);
-        }
-
-        .glow-spot {
-            position: absolute;
-            filter: blur(90px);
-            opacity: 0.7;
             border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.4;
             z-index: -1;
+            pointer-events: none;
         }
+        /* Top Right Orb */
+        .orb-1 { top: -15%; right: -10%; width: 900px; height: 900px; background: #7c3aed; opacity: 0.35; }
+        /* Bottom Left Orb */
+        .orb-2 { bottom: -10%; left: -10%; width: 700px; height: 700px; background: #7c3aed; opacity: 0.3; }
+        .orb-3 { display: none; }
     </style>
 <script type="importmap">
 {
@@ -136,7 +123,7 @@
 }
 </script>
 </head>
-<body class="bg-background-dark text-white antialiased overflow-hidden font-sans h-screen flex items-center justify-center">
+<body class="bg-[#09090b] text-white antialiased overflow-hidden font-sans h-screen flex items-center justify-center">
     <div id="root" class="h-full w-full flex items-center justify-center"></div>
 </body>
 </html>

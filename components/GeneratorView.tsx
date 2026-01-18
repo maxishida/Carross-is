@@ -245,8 +245,8 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <div className="flex flex-col">
-                        <h1 className="text-2xl font-bold text-white font-display neon-text-glow">Nova Criação</h1>
-                        <span className="text-xs text-primary font-medium tracking-wide">Agente de Ultra Design Ativo</span>
+                        <h1 className="text-2xl font-bold text-white font-display tracking-tight">Carrossel Glass</h1>
+                        <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Agente de Ultra Design Ativo</span>
                     </div>
                 </div>
                 
@@ -262,7 +262,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                     
                     <button 
                         onClick={() => setIsAssistantOpen(true)}
-                        className={`flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/50 text-white rounded-full shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:bg-primary/30 transition-all group ${isAssistantOpen ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50 text-white rounded-full shadow-[0_0_15px_rgba(168,85,247,0.2)] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:bg-purple-500/30 transition-all group ${isAssistantOpen ? 'opacity-50 cursor-not-allowed' : ''}`}
                         disabled={isAssistantOpen}
                     >
                         <span className="material-symbols-outlined group-hover:rotate-12 transition-transform">smart_toy</span>
@@ -278,7 +278,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                         <ConfigPanel config={config} setConfig={setConfig} disabled={isLoading || isRefining} />
                         
                         {/* STYLE REMIXER (Instant Style Change) */}
-                        <div className="bg-[#050511] lg:rounded-2xl border border-white/5 p-4 shadow-lg shrink-0">
+                        <div className="bg-[#1e1b2e]/80 backdrop-blur-xl lg:rounded-2xl border border-white/5 p-4 shadow-lg shrink-0">
                             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                 <span className="material-symbols-outlined text-sm text-pink-400">palette</span>
                                 Visual Remix (Instant)
@@ -288,7 +288,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                     <button 
                                         key={styleName}
                                         onClick={() => handleRemixStyle(styleName)}
-                                        className="text-[9px] bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg py-2 px-1 text-center truncate transition-all hover:border-pink-500/50 text-slate-300 hover:text-white"
+                                        className="text-[9px] bg-black/40 hover:bg-white/10 border border-white/5 rounded-lg py-2 px-1 text-center truncate transition-all hover:border-pink-500/50 text-slate-300 hover:text-white"
                                     >
                                         {styleName}
                                     </button>
@@ -304,10 +304,10 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                     {/* Input Panel */}
                     {!data && !isLoading && (
                          <div className="flex flex-col gap-4 pt-10">
-                             {/* Large White Input Box Mockup (matching reference) */}
-                             <div className="bg-white rounded-2xl p-6 shadow-2xl relative min-h-[160px] flex flex-col justify-center border-4 border-white/10">
+                             {/* Large Input Box Mockup (Dark Glass) */}
+                             <div className="bg-[#1e1b2e]/90 backdrop-blur-xl rounded-3xl p-8 shadow-2xl relative min-h-[200px] flex flex-col justify-center border border-white/10 group focus-within:border-purple-500/50 transition-colors">
                                 <textarea 
-                                    className="w-full bg-transparent border-none p-0 resize-none text-2xl font-display font-medium text-slate-900 placeholder:text-slate-300 focus:ring-0 leading-tight" 
+                                    className="w-full bg-transparent border-none p-0 resize-none text-2xl font-display font-medium text-white placeholder:text-slate-500 focus:ring-0 leading-tight" 
                                     placeholder="Descreva seu tópico aqui..." 
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
@@ -316,7 +316,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                 <div className="absolute bottom-6 right-6 flex items-center gap-3">
                                     <button 
                                         onClick={handleGenerate} 
-                                        className="bg-[#f43f5e] hover:bg-[#e11d48] text-white font-bold px-6 py-2.5 rounded-full shadow-lg shadow-rose-500/30 transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
+                                        className="bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-400 hover:to-rose-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-pink-900/20 transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
                                     >
                                         <span>Gerar Mágica</span>
                                         <span className="material-symbols-outlined text-lg">auto_awesome</span>
@@ -324,10 +324,10 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                 </div>
                              </div>
                              
-                             <div className="flex justify-center gap-4 text-slate-500 text-xs font-medium">
-                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">bolt</span> Rápido</span>
-                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">auto_awesome</span> IA Generativa</span>
-                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">verified</span> Profissional</span>
+                             <div className="flex justify-center gap-6 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                 <span className="flex items-center gap-2"><span className="material-symbols-outlined text-sm">bolt</span> Rápido</span>
+                                 <span className="flex items-center gap-2"><span className="material-symbols-outlined text-sm">auto_awesome</span> IA Generativa</span>
+                                 <span className="flex items-center gap-2"><span className="material-symbols-outlined text-sm">verified</span> Profissional</span>
                              </div>
                          </div>
                     )}
@@ -336,7 +336,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                     {(data || isLoading) && (
                     <div className="flex flex-col gap-5">
                          <div className="flex items-center gap-3">
-                            <h2 className="text-lg font-bold text-white font-display neon-text-glow flex items-center gap-2">
+                            <h2 className="text-lg font-bold text-white font-display tracking-tight flex items-center gap-2">
                                 {isLoading ? 'Processando...' : 'Resultado'}
                             </h2>
                             {data && (
@@ -352,7 +352,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                     {/* INSTAGRAM MOCKUP BUTTON */}
                                     <button 
                                         onClick={() => setShowInstagramMockup(true)}
-                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border bg-gradient-to-r from-pink-500/20 to-yellow-500/20 border-pink-500/30 text-white hover:border-pink-500 transition-all"
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border bg-gradient-to-r from-pink-500/20 to-orange-500/20 border-pink-500/30 text-white hover:border-pink-500 transition-all"
                                     >
                                         <span className="material-symbols-outlined text-[16px]">view_comfy</span>
                                         <span>Simular Feed</span>
@@ -367,10 +367,10 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                 <SortableContext items={data?.slides.map(s => s.slideNumber.toString()) || []} strategy={horizontalListSortingStrategy}>
                                     <div className={`flex gap-6 min-w-max px-1 ${isZenMode ? 'justify-center' : ''}`}>
                                         {isLoading && (
-                                            <div className="w-full h-[420px] rounded-3xl bg-[#030712]/80 border border-white/10 flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
-                                                <div className="size-24 rounded-full border-4 border-primary/30 border-t-primary animate-spin mb-6"></div>
+                                            <div className="w-full h-[420px] rounded-3xl bg-[#1e1b2e]/80 border border-white/10 flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
+                                                <div className="size-24 rounded-full border-4 border-purple-500/30 border-t-purple-500 animate-spin mb-6"></div>
                                                 <h3 className="text-2xl font-bold text-white font-display">Criando Experiência</h3>
-                                                <p className="text-primary font-mono text-sm uppercase tracking-widest animate-pulse">{loadingMessage}</p>
+                                                <p className="text-purple-400 font-mono text-sm uppercase tracking-widest animate-pulse mt-2">{loadingMessage}</p>
                                             </div>
                                         )}
 

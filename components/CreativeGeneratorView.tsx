@@ -506,7 +506,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                         </div>
 
                         {/* RIGHT: EDIT CONTROLS */}
-                        <div className="w-[350px] bg-[#0f172a] border-l border-white/10 flex flex-col">
+                        <div className="w-[350px] bg-[#1e1b2e] border-l border-white/10 flex flex-col">
                              {/* Header */}
                              <div className="p-6 border-b border-white/5">
                                  <div className="flex justify-between items-start mb-4">
@@ -705,7 +705,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                         <span className="material-symbols-outlined text-white">arrow_back</span>
                     </button>
                     <div className="flex flex-col">
-                        <h1 className="text-2xl font-bold text-white font-display">Gerador de Criativos</h1>
+                        <h1 className="text-2xl font-bold text-white font-display tracking-tight">Criativos Ads</h1>
                         <span className="text-xs text-slate-400">Motor: Auto Design (Gemini 3 Flash) + Image Gen (Nano Banana)</span>
                     </div>
                 </div>
@@ -720,7 +720,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                 {/* Main Content */}
                 <div className="lg:col-span-9 order-1 lg:order-2 flex flex-col gap-8 pb-24">
                     {/* Input & Filters Area */}
-                    <div className={`glass-panel p-1 rounded-2xl shadow-xl transition-all duration-300 ${config.inputType === 'product' ? 'border-purple-500/30 shadow-purple-900/10' : ''}`}>
+                    <div className={`bg-[#1e1b2e]/90 backdrop-blur-xl p-1 rounded-2xl shadow-xl transition-all duration-300 border border-white/5 ${config.inputType === 'product' ? 'border-purple-500/30 shadow-purple-900/10' : ''}`}>
                          {/* Mode Switcher */}
                         <div className="flex border-b border-white/5 px-2 pt-2 gap-1 mb-4">
                             <button 
@@ -753,7 +753,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                     </label>
                                     <div className="relative mb-6">
                                         <input 
-                                            className="w-full h-14 pl-5 pr-40 rounded-xl bg-[#020617] border border-white/10 text-white placeholder:text-slate-600 focus:ring-primary focus:border-primary text-base font-medium" 
+                                            className="w-full h-14 pl-5 pr-40 rounded-xl bg-black/40 border border-white/10 text-white placeholder:text-slate-500 focus:ring-primary focus:border-primary text-base font-medium" 
                                             placeholder="Ex: post corrida de ia 2026" 
                                             type="text"
                                             value={topic}
@@ -771,7 +771,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 block">Link do Produto (Wrapper)</label>
                                             <div className="relative">
                                                 <input 
-                                                    className="w-full p-3 pl-9 rounded-xl bg-[#020617] border border-white/10 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                                                    className="w-full p-3 pl-9 rounded-xl bg-black/40 border border-white/10 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                                                     placeholder="https://loja.com/produto"
                                                     value={config.productUrl || ''}
                                                     onChange={(e) => setConfig({...config, productUrl: e.target.value})}
@@ -784,7 +784,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                          <div>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 block">Nome do Produto</label>
                                             <input 
-                                                className="w-full p-3 rounded-xl bg-[#020617] border border-white/10 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                                                className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                                                 placeholder="Ex: Tênis Runner Pro X"
                                                 value={config.productName || ''}
                                                 onChange={(e) => setConfig({...config, productName: e.target.value})}
@@ -841,7 +841,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                  <button 
                                     onClick={handleGenerate}
                                     disabled={isLoading || (config.inputType === 'product' ? !config.productImageUrl : !topic.trim())}
-                                    className="h-10 px-8 bg-[#a855f7] hover:bg-[#9333ea] text-white font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
+                                    className="h-10 px-8 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
                                 >
                                     {isLoading ? (
                                         <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
@@ -868,7 +868,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                             <h3 className="font-bold text-xl text-white">Gerando Conceitos...</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {Array.from({ length: 6 }).map((_, i) => (
-                                    <div key={i} className={`w-full rounded-2xl bg-slate-800 animate-pulse border border-slate-700 relative overflow-hidden aspect-[4/5]`}>
+                                    <div key={i} className={`w-full rounded-2xl bg-[#1e1b2e] animate-pulse border border-white/5 relative overflow-hidden aspect-[4/5]`}>
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
                                     </div>
                                 ))}
@@ -912,8 +912,8 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                 {sortedVariations.map((item) => (
                                     <div 
                                         key={item.id} 
-                                        className={`group relative flex flex-col bg-[#0f172a] border rounded-2xl overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/10
-                                            ${item.predictionScore === highestScore && sortBy === 'score' ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]' : 'border-slate-800 hover:border-primary/50'}
+                                        className={`group relative flex flex-col bg-[#1e1b2e] border rounded-2xl overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/10
+                                            ${item.predictionScore === highestScore && sortBy === 'score' ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]' : 'border-white/5 hover:border-primary/50'}
                                         `}
                                     >
                                         
@@ -1033,7 +1033,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                                         </div>
 
                                         {/* INFO BODY */}
-                                        <div className="p-5 flex flex-col gap-4 bg-[#0f172a] relative">
+                                        <div className="p-5 flex flex-col gap-4 bg-[#1e1b2e] relative">
                                             {/* AI Prediction Section */}
                                             {item.predictionReason && (
                                                 <div className="bg-black/30 p-3 rounded-lg border border-white/5 relative overflow-hidden group/score">

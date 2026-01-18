@@ -398,7 +398,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
             )}
 
             {/* TOP BAR: MODES */}
-            <div className="flex items-center justify-between mb-4 shrink-0 bg-black/40 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
+            <div className="flex items-center justify-between mb-4 shrink-0 bg-[#1e1b2e]/90 backdrop-blur-md p-2 rounded-2xl border border-white/10">
                 <div className="flex items-center gap-2">
                     <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
                         <span className="material-symbols-outlined">arrow_back</span>
@@ -439,7 +439,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 {/* LEFT: PREVIEW & TIMELINE */}
                 <div className="flex-1 flex flex-col gap-4 min-w-0 h-full">
                     {/* Main Canvas */}
-                    <div className="flex-1 bg-black rounded-3xl border border-white/10 relative overflow-hidden flex items-center justify-center group shadow-2xl min-h-0">
+                    <div className="flex-1 bg-[#050511] rounded-3xl border border-white/10 relative overflow-hidden flex items-center justify-center group shadow-2xl min-h-0">
                         {isGenerating ? (
                             <div className="absolute inset-0 bg-black/90 z-20 flex flex-col items-center justify-center gap-4">
                                 <div className="size-20 rounded-full border-4 border-neon-cyan/20 border-t-neon-cyan animate-spin"></div>
@@ -505,7 +505,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                     </div>
                     
                     {/* TIMELINE SEQUENCER (NEW) */}
-                    <div className="h-32 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col shrink-0">
+                    <div className="h-32 bg-[#1e1b2e]/80 border border-white/10 rounded-2xl p-2 flex flex-col shrink-0 backdrop-blur-sm">
                         <div className="flex justify-between items-center px-2 mb-2">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                 <span className="material-symbols-outlined text-sm text-neon-cyan">view_timeline</span>
@@ -543,8 +543,8 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 </div>
 
                 {/* RIGHT: CHAT INTERFACE (The "Director") */}
-                <div className="w-full lg:w-[400px] bg-[#020617] border-l border-white/10 flex flex-col shadow-2xl h-full">
-                    <div className="p-4 border-b border-white/5 bg-black/20 flex flex-col gap-2">
+                <div className="w-full lg:w-[400px] bg-[#151221] border-l border-white/10 flex flex-col shadow-2xl h-full">
+                    <div className="p-4 border-b border-white/5 bg-[#1e1b2e]/50 flex flex-col gap-2">
                         <h3 className="text-sm font-bold text-white flex items-center gap-2">
                             <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
                             Director AI Agent
@@ -596,10 +596,10 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                 <div 
                                     className={`p-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap relative group ${
                                         msg.role === 'user' 
-                                            ? 'bg-primary text-white rounded-tr-sm' 
+                                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-tr-sm shadow-lg' 
                                             : msg.role === 'system'
                                             ? 'bg-transparent text-slate-500 text-xs italic border border-white/5'
-                                            : 'bg-white/10 text-slate-200 rounded-tl-sm border border-white/5'
+                                            : 'bg-[#1e1b2e] text-slate-200 rounded-tl-sm border border-white/5 shadow-sm'
                                     }`}
                                 >
                                     {msg.content}
@@ -630,7 +630,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                     </div>
 
                     {/* REFERENCE FRAME UPLOAD & INPUT */}
-                    <div className="p-4 bg-black/40 border-t border-white/5 flex flex-col gap-2">
+                    <div className="p-4 bg-[#1e1b2e] border-t border-white/5 flex flex-col gap-2">
                         {isExtendingMode && (
                              <div className="flex items-center justify-between bg-purple-500/20 text-purple-200 text-xs px-3 py-1.5 rounded-lg border border-purple-500/30 animate-in fade-in">
                                  <span className="font-bold flex items-center gap-1">
@@ -686,7 +686,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                 <button 
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={isExtendingMode || attachedImages.length >= 3}
-                                    className={`p-3 rounded-xl border transition-colors ${attachedImages.length > 0 || attachedVideo ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'} ${(isExtendingMode || attachedImages.length >= 3) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`p-3 rounded-xl border transition-colors ${attachedImages.length > 0 || attachedVideo ? 'bg-purple-500/20 border-purple-500 text-purple-400' : 'bg-black/20 border-white/10 text-slate-400 hover:text-white'} ${(isExtendingMode || attachedImages.length >= 3) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     title="Anexar Imagens (até 3) ou Vídeo"
                                 >
                                     <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
@@ -716,7 +716,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
                         <div className="relative flex-1">
                             <input 
-                                className={`w-full bg-[#1e293b] text-white text-sm rounded-xl pl-4 pr-12 py-3 border focus:ring-1 outline-none transition-colors ${isExtendingMode ? 'border-purple-500 focus:border-purple-500 focus:ring-purple-500' : 'border-white/10 focus:border-neon-cyan focus:ring-neon-cyan'}`}
+                                className={`w-full bg-black/40 text-white text-sm rounded-xl pl-4 pr-12 py-3 border focus:ring-1 outline-none transition-colors ${isExtendingMode ? 'border-purple-500 focus:border-purple-500 focus:ring-purple-500' : 'border-white/10 focus:border-neon-cyan focus:ring-neon-cyan'}`}
                                 placeholder={isExtendingMode ? "O que acontece a seguir?" : (attachedImages.length > 0 ? "Prompt para essas referências..." : (currentMode === MotionMode.MAPS ? "Gerar mapa..." : "Instruir Diretor..."))}
                                 value={inputMessage}
                                 onChange={(e) => setInputMessage(e.target.value)}

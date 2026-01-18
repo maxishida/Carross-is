@@ -250,48 +250,51 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
   const suggestedLayouts = LAYOUT_SUGGESTIONS[config.goal || CarouselGoal.AUTHORITY] || [];
 
   return (
-    <div className="bg-[#050511] lg:rounded-2xl border border-white/5 flex flex-col gap-6 p-6 h-fit max-h-[calc(100vh-100px)] lg:sticky top-6 shadow-2xl overflow-y-auto custom-scrollbar">
+    <div className="bg-[#1e1b2e]/90 backdrop-blur-xl lg:rounded-2xl border border-white/5 flex flex-col gap-6 p-6 h-fit max-h-[calc(100vh-100px)] lg:sticky top-6 shadow-2xl overflow-y-auto custom-scrollbar">
       
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-xl">tune</span>
-            <h3 className="font-bold text-lg text-white font-display">Ultra Configuração</h3>
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-900/20">
+                <span className="material-symbols-outlined text-lg">tune</span>
+            </div>
+            <h3 className="font-bold text-lg text-white tracking-tight">Configuração</h3>
         </div>
         
         <button 
             onClick={handleResetDefaults}
             className="text-slate-500 hover:text-white transition-colors"
+            title="Resetar Padrões"
         >
-            <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+            <span className="material-symbols-outlined text-[18px]">restart_alt</span>
         </button>
       </div>
 
       {/* Goal Selector */}
       <div className="flex flex-col gap-2 shrink-0">
          <div className="flex justify-between items-center">
-             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 Objetivo do Carrossel
              </label>
              {loadedDefaults && (
-                 <span className="text-[9px] text-green-500/80 flex items-center gap-1">
+                 <span className="text-[9px] text-emerald-400 flex items-center gap-1">
                      <span className="material-symbols-outlined text-[12px]">save</span>
-                     Auto-save
+                     Salvo
                  </span>
              )}
          </div>
          <div className="relative group">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-primary">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-purple-400">
                 <span className="material-symbols-outlined text-[18px]">flag</span>
             </div>
             <select 
-                className="w-full p-3 pl-10 text-xs text-white bg-[#0b0f19] border border-white/10 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary appearance-none font-medium transition-all group-hover:border-white/20"
+                className="w-full p-3 pl-10 text-xs text-white bg-black/40 border border-white/10 rounded-xl focus:ring-1 focus:ring-purple-500 focus:border-purple-500 appearance-none font-medium transition-all group-hover:border-white/20"
                 value={config.goal || CarouselGoal.AUTHORITY}
                 onChange={handleGoalChange}
                 disabled={disabled}
             >
                 {Object.values(CarouselGoal).map((goal) => (
-                    <option key={goal} value={goal} className="bg-[#0b0f19]">{goal}</option>
+                    <option key={goal} value={goal} className="bg-[#1e1b2e] text-white">{goal}</option>
                 ))}
             </select>
             <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
@@ -300,12 +303,12 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
 
       {/* Audience Input */}
       <div className="flex flex-col gap-2 shrink-0">
-         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Público Alvo
          </label>
          <input 
             type="text"
-            className="w-full p-3 text-xs text-white bg-[#0b0f19] border border-white/10 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none transition-all hover:border-white/20"
+            className="w-full p-3 text-xs text-white bg-black/40 border border-white/10 rounded-xl focus:ring-1 focus:ring-purple-500 focus:border-purple-500 placeholder:text-slate-600 outline-none transition-all hover:border-white/20"
             placeholder="Ex: Empreendedores, Designers..."
             value={config.audience || ''}
             onChange={(e) => setConfig(prev => ({ ...prev, audience: e.target.value }))}
@@ -316,11 +319,11 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       {/* Brand Knowledge Base (RAG) */}
       <div className="flex flex-col gap-2 shrink-0">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 Base de Conhecimento (RAG)
             </label>
-            <span className="text-[9px] font-bold text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 rounded tracking-wide">
-                FEATURE #2
+            <span className="text-[9px] font-bold text-pink-400 border border-pink-500/30 bg-pink-500/10 px-1.5 py-0.5 rounded tracking-wide">
+                PRO
             </span>
           </div>
           
@@ -332,22 +335,22 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                   {readingKb ? (
                       <span className="material-symbols-outlined animate-spin text-slate-500">sync</span>
                   ) : (
-                      <span className="material-symbols-outlined text-slate-500 group-hover:text-emerald-400 transition-colors">upload_file</span>
+                      <span className="material-symbols-outlined text-slate-500 group-hover:text-purple-400 transition-colors">upload_file</span>
                   )}
                   <p className="text-[9px] text-slate-500 group-hover:text-slate-300 transition-colors">{readingKb ? 'Processando...' : 'Upload PDF/TXT (Contexto)'}</p>
               </div>
           ) : (
-              <div className="flex items-center justify-between bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-xl group hover:border-emerald-500/40 transition-all">
+              <div className="flex items-center justify-between bg-purple-900/20 border border-purple-500/20 p-3 rounded-xl group hover:border-purple-500/40 transition-all">
                   <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                      <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400">
                         <span className="material-symbols-outlined text-sm">description</span>
                       </div>
                       <div className="flex flex-col truncate">
-                        <span className="text-[10px] font-bold text-emerald-100 truncate max-w-[120px]">{config.knowledgeBaseFileName || 'Arquivo Carregado'}</span>
-                        <span className="text-[9px] text-emerald-500/70">Contexto Ativo</span>
+                        <span className="text-[10px] font-bold text-purple-100 truncate max-w-[120px]">{config.knowledgeBaseFileName || 'Arquivo Carregado'}</span>
+                        <span className="text-[9px] text-purple-400/70">Contexto Ativo</span>
                       </div>
                   </div>
-                  <button onClick={removeKb} className="text-emerald-500/50 hover:text-emerald-400 transition-colors p-1">
+                  <button onClick={removeKb} className="text-purple-400/50 hover:text-purple-400 transition-colors p-1">
                       <span className="material-symbols-outlined text-sm">close</span>
                   </button>
               </div>
@@ -365,11 +368,11 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       {/* Layout Suggestions */}
       <div className="flex flex-col gap-3 shrink-0">
           <div className="flex justify-between items-center">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 Sugestão de Layout
             </label>
             {!hideSlideCount && (
-                <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
                     {config.slideCount} SLIDES
                 </span>
             )}
@@ -384,14 +387,14 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                       className={`
                           group relative p-3 rounded-xl border text-left transition-all overflow-hidden flex items-center justify-between
                           ${config.layoutMode === layout.label 
-                              ? 'bg-[#1e1b4b]/50 border-primary/50 shadow-[0_0_15px_rgba(99,102,241,0.1)]' 
-                              : 'bg-[#0b0f19] border-white/5 hover:bg-white/5 hover:border-white/10'}
+                              ? 'bg-purple-900/20 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]' 
+                              : 'bg-black/20 border-white/5 hover:bg-white/5 hover:border-white/10'}
                       `}
                   >
                       <div className="flex items-center gap-3">
                           <div className={`
                               size-9 rounded-lg flex items-center justify-center transition-colors
-                              ${config.layoutMode === layout.label ? 'bg-primary text-white' : 'bg-white/5 text-slate-500 group-hover:text-white'}
+                              ${config.layoutMode === layout.label ? 'bg-purple-600 text-white' : 'bg-white/5 text-slate-500 group-hover:text-white'}
                           `}>
                               <span className="material-symbols-outlined text-[18px]">{layout.icon}</span>
                           </div>
@@ -399,14 +402,14 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                               <span className={`text-xs font-bold transition-colors ${config.layoutMode === layout.label ? 'text-white' : 'text-slate-300'}`}>
                                   {layout.label}
                               </span>
-                              <span className="text-[9px] text-slate-600 font-medium">
+                              <span className="text-[9px] text-slate-500 font-medium">
                                   {layout.description}
                               </span>
                           </div>
                       </div>
                       
                       {config.layoutMode === layout.label && (
-                         <span className="material-symbols-outlined text-primary text-sm animate-in fade-in zoom-in">check_circle</span>
+                         <span className="material-symbols-outlined text-purple-400 text-sm animate-in fade-in zoom-in">check_circle</span>
                       )}
                   </button>
               ))}
@@ -418,10 +421,10 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       {/* Brand Color */}
       <div className="flex flex-col gap-3 shrink-0 pb-4">
          <div className="flex justify-between items-center">
-             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 Cor da Marca
              </label>
-             <span className="text-[10px] font-mono text-slate-600 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+             <span className="text-[10px] font-mono text-slate-500 bg-white/5 px-2 py-0.5 rounded border border-white/5">
                 {config.brandColor || '#6366f1'}
              </span>
          </div>
@@ -431,7 +434,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                  <button
                     key={preset.color}
                     onClick={() => setConfig(prev => ({...prev, brandColor: preset.color}))}
-                    className={`size-6 rounded-full transition-all relative group ${config.brandColor === preset.color ? 'ring-2 ring-white ring-offset-2 ring-offset-[#050511] scale-110' : 'hover:scale-110 hover:ring-1 hover:ring-white/50'}`}
+                    className={`size-6 rounded-full transition-all relative group ${config.brandColor === preset.color ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1e1b2e] scale-110' : 'hover:scale-110 hover:ring-1 hover:ring-white/50'}`}
                     style={{backgroundColor: preset.color}}
                     title={preset.name}
                  >
@@ -445,7 +448,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
          </div>
          
          {/* Custom Picker */}
-         <div className="relative w-full h-9 bg-[#0b0f19] rounded-xl border border-white/10 flex items-center px-3 cursor-pointer hover:border-white/20 transition-colors group">
+         <div className="relative w-full h-9 bg-black/40 rounded-xl border border-white/10 flex items-center px-3 cursor-pointer hover:border-white/20 transition-colors group">
              <span className="text-[10px] text-slate-400 flex-1 group-hover:text-slate-300">Customizar Hex...</span>
              <span className="material-symbols-outlined text-[14px] text-slate-600 group-hover:text-slate-400">palette</span>
              <input 

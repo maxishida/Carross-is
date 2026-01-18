@@ -31,10 +31,10 @@ const ProjectsView: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-[#0f172a] text-slate-200">
-            <header className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-[#1e293b]/50">
+        <div className="flex flex-col h-full overflow-hidden text-slate-200">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center px-6 py-4 border-b border-white/5 bg-transparent backdrop-blur-sm shrink-0 gap-4 md:gap-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
                         <span className="material-symbols-outlined text-white text-lg">folder_open</span>
                     </div>
                     <div>
@@ -43,12 +43,12 @@ const ProjectsView: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="flex gap-2">
-                    <div className="relative">
+                <div className="flex gap-2 w-full md:w-auto">
+                    <div className="relative flex-1 md:flex-none">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
-                        <input type="text" placeholder="Filtrar projetos..." className="bg-[#0f172a] border border-white/10 rounded-lg py-2 pl-9 pr-4 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none w-48" />
+                        <input type="text" placeholder="Filtrar projetos..." className="glass-input rounded-lg py-2 pl-9 pr-4 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none w-full md:w-48 transition-all" />
                     </div>
-                    <button className="bg-white/5 hover:bg-white/10 border border-white/10 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all">
+                    <button className="glass-panel-light hover:bg-white/10 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center">
                         <span className="material-symbols-outlined text-sm align-middle mr-1">filter_list</span>
                         Filtros
                     </button>
@@ -58,14 +58,14 @@ const ProjectsView: React.FC = () => {
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {projects.map(project => (
-                        <div key={project.id} className="bg-[#1e293b] rounded-xl border border-white/5 p-5 hover:border-white/20 transition-all group relative overflow-hidden">
+                        <div key={project.id} className="glass-panel rounded-xl p-5 hover:border-white/20 transition-all group relative overflow-hidden hover:translate-y-[-2px]">
                             {/* Status Badge */}
                             <div className={`absolute top-4 right-4 text-[9px] font-bold px-2 py-0.5 rounded border ${getStatusColor(project.status)} bg-opacity-10 border-opacity-30`}>
                                 {getStatusLabel(project.status)}
                             </div>
 
                             <div className="mb-4">
-                                <div className="w-10 h-10 rounded-lg bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center mb-3 shadow-lg">
+                                <div className="w-10 h-10 rounded-lg bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center mb-3 shadow-lg border border-white/10">
                                     <span className="material-symbols-outlined text-white">rocket_launch</span>
                                 </div>
                                 <h3 className="font-bold text-white text-lg leading-tight group-hover:text-blue-400 transition-colors">{project.name}</h3>
@@ -78,7 +78,7 @@ const ProjectsView: React.FC = () => {
                                     <span>Progresso</span>
                                     <span>{project.progress}%</span>
                                 </div>
-                                <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                                     <div 
                                         className={`h-full rounded-full transition-all duration-1000 ${project.status === 'blocked' ? 'bg-red-500' : project.progress === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
                                         style={{ width: `${project.progress}%` }}
@@ -89,7 +89,7 @@ const ProjectsView: React.FC = () => {
                             <div className="flex items-center justify-between border-t border-white/5 pt-3">
                                 <div className="flex -space-x-2">
                                     {project.members.map((member, i) => (
-                                        <div key={i} className="w-6 h-6 rounded-full bg-slate-700 border border-[#1e293b] flex items-center justify-center text-[8px] text-white" title={member}>
+                                        <div key={i} className="w-6 h-6 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[8px] text-white" title={member}>
                                             {member[0]}
                                         </div>
                                     ))}
@@ -103,7 +103,7 @@ const ProjectsView: React.FC = () => {
                     ))}
                     
                     {/* Add New Project Card */}
-                    <div className="border-2 border-dashed border-white/5 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 hover:border-white/10 transition-all group">
+                    <div className="border-2 border-dashed border-white/5 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 hover:border-white/10 transition-all group min-h-[200px]">
                         <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                             <span className="material-symbols-outlined text-slate-500 group-hover:text-primary">add</span>
                         </div>
