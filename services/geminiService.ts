@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
-import { CarouselData, CreativeData, GenerationConfig, VisualStyleType, CharacterStyleType, ToneType, CarouselGoal, MotionConfig, MotionStyle, SlideLayoutType, MotionAspectRatio } from "../types";
+import { CarouselData, CreativeData, GenerationConfig, VisualStyleType, CharacterStyleType, ToneType, CarouselGoal, MotionConfig, MotionStyle, SlideLayoutType, MotionAspectRatio, GeneratedVeoData } from "../types";
 
 // Helper to safely get API Key
 const getApiKey = (): string => {
@@ -81,7 +81,7 @@ const carouselSchema: Schema = {
           visualDescription: { type: Type.STRING },
           imagePrompt: { 
               type: Type.STRING, 
-              description: "Prompt visual EXTREMAMENTE DETALHADO em Inglês. Deve incluir: Descrição da cena + Estilo Visual (do mapa) + Iluminação (ex: cinematic, volumetric) + Detalhes técnicos (8k, depth of field, ray tracing)." 
+              description: "Extremely detailed visual prompt in English. MUST include: 1. Scene description relative to content. 2. Specific visual style details defined in rules. 3. Technical keywords: '8k resolution', 'cinematic lighting', 'depth of field', 'photorealistic', 'ray tracing'." 
           },
           layoutSuggestion: { 
               type: Type.STRING, 
@@ -395,7 +395,7 @@ export const refineMotionChat = async (
     }
 };
 
-export const generateVeoVideo = async (prompt: string, style: MotionStyle = MotionStyle.CINEMATIC, aspectRatio: MotionAspectRatio = '16:9'): Promise<string | null> => {
+export const generateVeoVideo = async (prompt: string, style: MotionStyle = MotionStyle.CINEMATIC, aspectRatio: MotionAspectRatio = '16:9'): Promise<GeneratedVeoData | null> => {
     const apiKey = getApiKey();
     if (!apiKey) return null;
 
@@ -420,10 +420,15 @@ export const generateVeoVideo = async (prompt: string, style: MotionStyle = Moti
             operation = await ai.operations.getVideosOperation({operation: operation});
         }
 
-        const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+        const videoAsset = operation.response?.generatedVideos?.[0]?.video;
+        const videoUri = videoAsset?.uri;
+        
         if (videoUri) {
              const separator = videoUri.includes('?') ? '&' : '?';
-             return `${videoUri}${separator}key=${apiKey}`;
+             return {
+                 uri: `${videoUri}${separator}key=${apiKey}`,
+                 asset: videoAsset
+             };
         }
         return null;
 
@@ -433,7 +438,7 @@ export const generateVeoVideo = async (prompt: string, style: MotionStyle = Moti
     }
 };
 
-export const generateVeoFromImage = async (imageBase64: string, description: string, aspectRatio: '16:9' | '9:16' = '16:9'): Promise<string | null> => {
+export const generateVeoFromImage = async (imageBase64: string, description: string, aspectRatio: '16:9' | '9:16' = '16:9'): Promise<GeneratedVeoData | null> => {
     const apiKey = getApiKey();
     if (!apiKey) return null;
     const ai = new GoogleGenAI({ apiKey });
@@ -458,11 +463,60 @@ export const generateVeoFromImage = async (imageBase64: string, description: str
             await new Promise(resolve => setTimeout(resolve, 5000)); 
             operation = await ai.operations.getVideosOperation({operation: operation});
         }
-        const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
-        if (videoUri) return `${videoUri}&key=${apiKey}`;
+        const videoAsset = operation.response?.generatedVideos?.[0]?.video;
+        const videoUri = videoAsset?.uri;
+        
+        if (videoUri) {
+            return {
+                uri: `${videoUri}&key=${apiKey}`,
+                asset: videoAsset
+            };
+        }
         return null;
     } catch (error) { return null; }
 }
+
+// NEW: Extend Veo Video Function
+export const extendVeoVideo = async (previousVideoAsset: any, prompt: string): Promise<GeneratedVeoData | null> => {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+    const ai = new GoogleGenAI({ apiKey });
+
+    try {
+        // Veo extension requires the generation model and 720p resolution
+        let operation = await ai.models.generateVideos({
+            model: 'veo-3.1-generate-preview',
+            prompt: prompt, // Mandatory prompt for extension
+            video: previousVideoAsset, // Pass the previous video asset object
+            config: {
+                numberOfVideos: 1,
+                resolution: '720p', // Only 720p supported for extension
+                // Aspect ratio is inherited usually, but safe to pass if known or strict
+            }
+        });
+
+        while (!operation.done) {
+            await new Promise(resolve => setTimeout(resolve, 5000)); 
+            operation = await ai.operations.getVideosOperation({operation: operation});
+        }
+
+        const videoAsset = operation.response?.generatedVideos?.[0]?.video;
+        const videoUri = videoAsset?.uri;
+
+        if (videoUri) {
+             const separator = videoUri.includes('?') ? '&' : '?';
+             return {
+                 uri: `${videoUri}${separator}key=${apiKey}`,
+                 asset: videoAsset
+             };
+        }
+        return null;
+
+    } catch (error) {
+        console.error("Error extending Veo video:", error);
+        throw error;
+    }
+};
 
 // ... (Rest of existing functions unchanged: researchTopic, generateCarousel, etc.) ...
 export const researchTopic = async (topic: string, audience?: string): Promise<{ text: string, sources: string[] }> => {
@@ -501,7 +555,13 @@ export const generateCarousel = async (input: string, config: GenerationConfig, 
     LAYOUT: ${config.layoutMode}
     ${researchContext ? `RESEARCH: ${researchContext}` : ''}
     ${visualInstructionBlock}
-    IMPORTANT: Append "${QUALITY_MODIFIERS}" to every image prompt.
+
+    CRITICAL: For the 'imagePrompt' field in each slide, you MUST write a highly descriptive prompt in English that includes:
+    1. A clear description of the scene or abstract visualization suitable for the slide's content.
+    2. Specific details from the selected VISUAL STYLE (${selectedStyleName}).
+    3. Mandatory professional photography keywords: "8k resolution", "cinematic lighting", "depth of field", "photorealistic", "highly detailed", "ray tracing".
+    
+    Ensure variety in the prompts while maintaining consistency in the visual style.
     `;
     
     try {

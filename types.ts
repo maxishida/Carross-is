@@ -119,11 +119,17 @@ export interface MotionConfig {
   // Data Specifics
   chartType?: 'Bar' | 'Line' | 'Pie' | 'Floating UI';
   chartData?: string;
-  // Typography Specifics
+  // Typo Specifics
   typoText?: string;
   // Intelligence Features (NEW)
   useThinking?: boolean;
   useGrounding?: 'none' | 'googleSearch' | 'googleMaps';
+}
+
+// New Interface to store Video Asset for Extension
+export interface GeneratedVeoData {
+    uri: string;
+    asset: any; // The raw video asset object from Gemini API required for extension
 }
 
 export interface MotionChatMessage {
@@ -131,7 +137,7 @@ export interface MotionChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
-    videoUri?: string; // If the message resulted in a video
+    videoData?: GeneratedVeoData; // Changed from videoUri to videoData
     attachment?: string; // Base64 image or video
     attachmentType?: 'image' | 'video'; // NEW
 }

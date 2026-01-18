@@ -252,10 +252,10 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
         const currentImage = previewData.history[previewData.currentStep];
 
         try {
-            const videoUri = await generateVeoFromImage(currentImage, directorPrompt);
-            if (videoUri) {
+            const videoResult = await generateVeoFromImage(currentImage, directorPrompt);
+            if (videoResult) {
                 // Update Preview State with video
-                setPreviewData(prev => prev ? ({ ...prev, videoUrl: videoUri }) : null);
+                setPreviewData(prev => prev ? ({ ...prev, videoUrl: videoResult.uri }) : null);
                 
                 // Update Main Data
                 setData(prevData => {
@@ -263,7 +263,7 @@ const CreativeGeneratorView: React.FC<CreativeGeneratorViewProps> = ({ onBack })
                     return {
                         ...prevData,
                         variations: prevData.variations.map(v => 
-                            v.id === previewData.id ? { ...v, generatedVideo: videoUri } : v
+                            v.id === previewData.id ? { ...v, generatedVideo: videoResult.uri } : v
                         )
                     };
                 });

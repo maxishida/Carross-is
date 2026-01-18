@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MotionConfig, MotionMode, MotionStyle, MotionVisualTheme, MotionAspectRatio, MotionChatMessage } from '../types';
-import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent } from '../services/geminiService';
+import { MotionConfig, MotionMode, MotionStyle, MotionVisualTheme, MotionAspectRatio, MotionChatMessage, GeneratedVeoData } from '../types';
+import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent, extendVeoVideo } from '../services/geminiService';
 
 interface MotionGeneratorViewProps {
     onBack: () => void;
@@ -56,8 +56,9 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
     // Generation State
     const [isGenerating, setIsGenerating] = useState(false);
-    const [currentVideoUri, setCurrentVideoUri] = useState<string | null>(null);
+    const [currentVideoData, setCurrentVideoData] = useState<GeneratedVeoData | null>(null); // Changed from simple URI to full Data object
     const [loadingStep, setLoadingStep] = useState('');
+    const [isExtendingMode, setIsExtendingMode] = useState(false); // State to track if user is extending
 
     const scrollToBottom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -112,8 +113,24 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         }
     };
 
+    const handleExtensionClick = () => {
+        setIsExtendingMode(true);
+        // Add a system message guiding the user
+        setChatHistory(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'system',
+            content: 'MODO DE EXTENSÃO ATIVADO: Descreva o que acontece a seguir no vídeo (ex: "A câmera se afasta revelando a cidade")...',
+            timestamp: Date.now()
+        }]);
+    };
+
+    const handleCancelExtension = () => {
+        setIsExtendingMode(false);
+        setInputMessage('');
+    };
+
     const handleSendMessage = async () => {
-        if (!inputMessage.trim() && !attachedMedia && currentMode === MotionMode.STUDIO) return;
+        if (!inputMessage.trim() && !attachedMedia && currentMode === MotionMode.STUDIO && !isExtendingMode) return;
 
         // 1. Add User Message
         const userMsg: MotionChatMessage = {
@@ -127,6 +144,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         setChatHistory(prev => [...prev, userMsg]);
         
         // Reset Inputs
+        const promptText = inputMessage;
         setInputMessage('');
         const currentAttachment = attachedMedia;
         const currentMediaType = mediaType;
@@ -135,74 +153,79 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         
         setIsGenerating(true);
         
-        // Determine Loading State based on Intelligence
+        // Determine Loading State
         let stepText = 'Motion Director: Processando...';
-        if (config.useThinking) stepText = 'Gemini 3 Pro: Pensando profundamente (Budget 32k)...';
+        if (isExtendingMode) stepText = 'Veo 3.1: Estendendo timeline (+5s)...';
+        else if (config.useThinking) stepText = 'Gemini 3 Pro: Pensando profundamente (Budget 32k)...';
         else if (config.useGrounding === 'googleMaps') stepText = 'Gemini 2.5: Acessando Google Maps...';
         else if (config.useGrounding === 'googleSearch') stepText = 'Gemini 3 Flash: Pesquisando tendências...';
         setLoadingStep(stepText);
 
         try {
             let finalPrompt = '';
-            let videoUri: string | null = null;
+            let videoResult: GeneratedVeoData | null = null;
 
-            // 2. Build Prompt based on Mode or Use Director for Studio
-            if (currentMode === MotionMode.MAPS) {
-                if (!config.mapStart || !config.mapEnd) throw new Error("Defina origem e destino.");
-                finalPrompt = generateMapPrompt(config.mapStart, config.mapEnd, config.mapStyle || 'Satellite', config.mapDataExplosion || false);
-                setLoadingStep('Veo: Renderizando topografia 3D...');
-                videoUri = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
+            // --- EXTENSION LOGIC ---
+            if (isExtendingMode && currentVideoData?.asset) {
+                videoResult = await extendVeoVideo(currentVideoData.asset, promptText);
+                setIsExtendingMode(false); // Reset extension mode after call
             } 
-            else if (currentMode === MotionMode.DATA) {
-                if (!config.chartData) throw new Error("Insira os dados do gráfico.");
-                finalPrompt = generateDataPrompt(config.chartType || 'Bar', config.chartData, config.visualTheme);
-                setLoadingStep('Veo: Animando dados com Easy-ease...');
-                videoUri = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
-            }
-            else if (currentMode === MotionMode.TYPOGRAPHY) {
-                 if (!config.typoText) throw new Error("Insira o texto para animar.");
-                 finalPrompt = generateTypographyPrompt(config.typoText);
-                 setLoadingStep('Veo: Aplicando Kinetic Typography...');
-                 videoUri = await generateVeoVideo(finalPrompt, MotionStyle.KINETIC_TYPO, config.aspectRatio);
-            } 
+            // --- STANDARD GENERATION LOGIC ---
             else {
-                // STUDIO MODE: The "Director Agent" Logic (Now with Super Powers)
-                
-                // Construct history for the AI
-                const historyForAI = chatHistory.concat(userMsg).map(m => ({ 
-                    role: m.role, 
-                    content: m.content, 
-                    attachment: m.attachment,
-                    attachmentType: m.attachmentType
-                }));
+                // 2. Build Prompt based on Mode or Use Director for Studio
+                if (currentMode === MotionMode.MAPS) {
+                    if (!config.mapStart || !config.mapEnd) throw new Error("Defina origem e destino.");
+                    finalPrompt = generateMapPrompt(config.mapStart, config.mapEnd, config.mapStyle || 'Satellite', config.mapDataExplosion || false);
+                    setLoadingStep('Veo: Renderizando topografia 3D...');
+                    videoResult = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
+                } 
+                else if (currentMode === MotionMode.DATA) {
+                    if (!config.chartData) throw new Error("Insira os dados do gráfico.");
+                    finalPrompt = generateDataPrompt(config.chartType || 'Bar', config.chartData, config.visualTheme);
+                    setLoadingStep('Veo: Animando dados com Easy-ease...');
+                    videoResult = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
+                }
+                else if (currentMode === MotionMode.TYPOGRAPHY) {
+                     if (!config.typoText) throw new Error("Insira o texto para animar.");
+                     finalPrompt = generateTypographyPrompt(config.typoText);
+                     setLoadingStep('Veo: Aplicando Kinetic Typography...');
+                     videoResult = await generateVeoVideo(finalPrompt, MotionStyle.KINETIC_TYPO, config.aspectRatio);
+                } 
+                else {
+                    // STUDIO MODE: The "Director Agent" Logic
+                    
+                    // Construct history for the AI
+                    const historyForAI = chatHistory.concat(userMsg).map(m => ({ 
+                        role: m.role, 
+                        content: m.content, 
+                        attachment: m.attachment,
+                        attachmentType: m.attachmentType
+                    }));
 
-                // Call the Smart Router
-                finalPrompt = await refineMotionChat(historyForAI, config);
-                
-                // If the user just wanted analysis (indicated by prompt keywords or context), maybe don't gen video immediately?
-                // For this demo, we assume "Motion Generator" always implies video generation unless explicit stop.
-                
-                if (currentAttachment && currentMediaType === 'image') {
-                     // Image-to-Video
-                     setLoadingStep('Veo 3.1: Animate Image (Fast Preview)...');
-                     videoUri = await generateVeoFromImage(currentAttachment, finalPrompt, config.aspectRatio);
-                } else {
-                     // Text-to-Video (or Video Analysis -> Text -> New Video)
-                     // Note: We can't edit existing video bytes yet, only generate NEW ones based on analysis.
-                     setLoadingStep(`Veo 3.1: Gerando cena (${config.aspectRatio})...`);
-                     videoUri = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
+                    // Call the Smart Router
+                    finalPrompt = await refineMotionChat(historyForAI, config);
+                    
+                    if (currentAttachment && currentMediaType === 'image') {
+                         // Image-to-Video
+                         setLoadingStep('Veo 3.1: Animate Image (Fast Preview)...');
+                         videoResult = await generateVeoFromImage(currentAttachment, finalPrompt, config.aspectRatio);
+                    } else {
+                         // Text-to-Video
+                         setLoadingStep(`Veo 3.1: Gerando cena (${config.aspectRatio})...`);
+                         videoResult = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
+                    }
                 }
             }
             
-            if (videoUri) {
-                setCurrentVideoUri(videoUri);
+            if (videoResult) {
+                setCurrentVideoData(videoResult);
                 // 4. Add Assistant Response with Video
                 setChatHistory(prev => [...prev, {
                     id: Date.now().toString(),
                     role: 'assistant',
                     content: `🎬 Renderização concluída.\nPrompt Técnico: "${finalPrompt.substring(0, 80)}..."`,
                     timestamp: Date.now(),
-                    videoUri: videoUri
+                    videoData: videoResult || undefined
                 }]);
             } else {
                 throw new Error("Falha na geração (API não retornou URI).");
@@ -215,6 +238,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 content: `Erro: ${err.message || 'Falha desconhecida.'}`,
                 timestamp: Date.now()
             }]);
+            setIsExtendingMode(false); // Reset on error
         } finally {
             setIsGenerating(false);
             setLoadingStep('');
@@ -290,10 +314,10 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                     <p className="text-neon-cyan text-xs font-mono mt-1">{loadingStep}</p>
                                 </div>
                             </div>
-                        ) : currentVideoUri ? (
+                        ) : currentVideoData ? (
                             <div className="relative w-full h-full flex items-center justify-center bg-[#050511]">
                                 <video 
-                                    src={currentVideoUri} 
+                                    src={currentVideoData.uri} 
                                     className={`max-w-full max-h-full shadow-2xl ${config.aspectRatio === '9:16' ? 'aspect-[9/16]' : 'aspect-video'}`}
                                     controls 
                                     autoPlay 
@@ -308,10 +332,20 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                         )}
                         
                         {/* Overlay Controls */}
-                        {currentVideoUri && !isGenerating && (
-                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {currentVideoData && !isGenerating && (
+                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                {/* EXTEND VIDEO BUTTON */}
                                 <button 
-                                    onClick={() => handleDownload(currentVideoUri)}
+                                    onClick={handleExtensionClick}
+                                    className="bg-primary/80 hover:bg-primary backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 text-xs font-bold flex items-center gap-1 shadow-lg"
+                                    title="Estender o vídeo atual"
+                                >
+                                    <span className="material-symbols-outlined text-sm">playlist_add</span>
+                                    Estender (+5s)
+                                </button>
+                                
+                                <button 
+                                    onClick={() => handleDownload(currentVideoData.uri)}
                                     className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-2 rounded-full border border-white/10"
                                 >
                                     <span className="material-symbols-outlined">download</span>
@@ -526,9 +560,9 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                         </button>
                                     )}
                                 </div>
-                                {msg.videoUri && (
-                                    <div className="mt-1 w-32 aspect-video bg-black rounded-lg border border-white/10 overflow-hidden relative group cursor-pointer" onClick={() => setCurrentVideoUri(msg.videoUri!)}>
-                                        <video src={msg.videoUri} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                                {msg.videoData && (
+                                    <div className="mt-1 w-32 aspect-video bg-black rounded-lg border border-white/10 overflow-hidden relative group cursor-pointer" onClick={() => setCurrentVideoData(msg.videoData!)}>
+                                        <video src={msg.videoData.uri} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <span className="material-symbols-outlined text-white drop-shadow-md">play_circle</span>
                                         </div>
@@ -553,6 +587,16 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
                     {/* REFERENCE FRAME UPLOAD & INPUT */}
                     <div className="p-4 bg-black/40 border-t border-white/5 flex flex-col gap-2">
+                        {isExtendingMode && (
+                             <div className="flex items-center justify-between bg-purple-500/20 text-purple-200 text-xs px-3 py-1.5 rounded-lg border border-purple-500/30 animate-in fade-in">
+                                 <span className="font-bold flex items-center gap-1">
+                                     <span className="material-symbols-outlined text-[14px] animate-pulse">playlist_add</span>
+                                     Estendendo Vídeo...
+                                 </span>
+                                 <button onClick={handleCancelExtension} className="hover:text-white"><span className="material-symbols-outlined text-[14px]">close</span></button>
+                             </div>
+                        )}
+
                         {attachedMedia && (
                             <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
                                 {mediaType === 'video' ? (
@@ -570,7 +614,8 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                         <div className="relative flex items-center gap-2">
                             <button 
                                 onClick={() => fileInputRef.current?.click()}
-                                className={`p-3 rounded-xl border transition-colors ${attachedMedia ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                                disabled={isExtendingMode}
+                                className={`p-3 rounded-xl border transition-colors ${attachedMedia ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'} ${isExtendingMode ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 title="Anexar Imagem ou Vídeo"
                             >
                                 <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
@@ -585,12 +630,13 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
                             <div className="relative flex-1">
                                 <input 
-                                    className="w-full bg-[#1e293b] text-white text-sm rounded-xl pl-4 pr-12 py-3 border border-white/10 focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan outline-none"
-                                    placeholder={currentMode === MotionMode.MAPS ? "Gerar mapa..." : "Instruir Diretor..."}
+                                    className={`w-full bg-[#1e293b] text-white text-sm rounded-xl pl-4 pr-12 py-3 border focus:ring-1 outline-none transition-colors ${isExtendingMode ? 'border-purple-500 focus:border-purple-500 focus:ring-purple-500' : 'border-white/10 focus:border-neon-cyan focus:ring-neon-cyan'}`}
+                                    placeholder={isExtendingMode ? "O que acontece a seguir?" : (currentMode === MotionMode.MAPS ? "Gerar mapa..." : "Instruir Diretor...")}
                                     value={inputMessage}
                                     onChange={(e) => setInputMessage(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleSendMessage()}
                                     disabled={isGenerating}
+                                    autoFocus={isExtendingMode}
                                 />
                                 <button 
                                     onClick={() => handleSpeak('input', inputMessage)}
@@ -603,7 +649,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                 <button 
                                     onClick={handleSendMessage}
                                     disabled={isGenerating}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan hover:text-black transition-colors disabled:opacity-50"
+                                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors disabled:opacity-50 ${isExtendingMode ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500 hover:text-white' : 'bg-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan hover:text-black'}`}
                                 >
                                     <span className="material-symbols-outlined text-[18px]">send</span>
                                 </button>
