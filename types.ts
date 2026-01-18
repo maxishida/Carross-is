@@ -223,3 +223,88 @@ export interface ToastNotification {
     type: 'success' | 'error' | 'info' | 'loading';
     message: string;
 }
+
+// --- AGENCY OS DASHBOARD TYPES ---
+export interface AgencyTask {
+    id: string;
+    title: string;
+    client: string;
+    status: 'backlog' | 'progress' | 'done';
+    priority: 'low' | 'medium' | 'high';
+    teamMembers: string[];
+}
+
+export interface AgencyMetric {
+    label: string;
+    value: string;
+    subValue?: string;
+    trend?: 'up' | 'down' | 'neutral';
+    color: 'red' | 'green' | 'orange' | 'blue';
+}
+
+// --- NEW MANAGEMENT TYPES ---
+
+export interface Lead {
+    id: string;
+    companyName: string;
+    contactPerson: string;
+    value: number;
+    status: 'new' | 'contacted' | 'proposal' | 'negotiation' | 'closed' | 'lost';
+    lastContact: string;
+    probability: number; // 0-100
+}
+
+export interface Project {
+    id: string;
+    name: string;
+    client: string;
+    deadline: string;
+    progress: number; // 0-100
+    status: 'active' | 'review' | 'completed' | 'blocked';
+    thumbnail?: string; // Project cover or preview
+    members: string[]; // Initials or Avatar URLs
+}
+
+export interface FinanceItem {
+    id: string;
+    description: string;
+    amount: number;
+    type: 'income' | 'expense';
+    status: 'paid' | 'pending' | 'overdue';
+    date: string;
+    category: string;
+}
+
+export interface TeamMember {
+    id: string;
+    name: string;
+    role: string;
+    avatar: string;
+    activeProjects: number;
+    workload: number; // 0-100%
+    status: 'online' | 'busy' | 'offline';
+}
+
+// --- AGENCY PROPOSAL AI TYPES ---
+export interface ProposalOption {
+    name: string; // e.g. "Basic", "Growth", "Enterprise"
+    price: string;
+    timeline: string;
+    techStack: string[];
+    features: string[];
+    isRecommended?: boolean;
+}
+
+export interface SuggestedRole {
+    role: string;
+    seniority: 'Junior' | 'Mid' | 'Senior';
+    allocation: string; // e.g. "20h/mês"
+}
+
+export interface AgencyProposal {
+    clientName: string;
+    executiveSummary: string;
+    teamStructure: SuggestedRole[];
+    options: ProposalOption[];
+    nextSteps: string;
+}

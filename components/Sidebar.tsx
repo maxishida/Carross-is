@@ -2,8 +2,8 @@
 import React from 'react';
 
 interface SidebarProps {
-  onNavigate: (view: 'dashboard' | 'create' | 'creative' | 'motion') => void;
-  currentView: 'dashboard' | 'create' | 'creative' | 'motion';
+  onNavigate: (view: 'dashboard' | 'create' | 'creative' | 'motion' | 'crm' | 'projects' | 'finance' | 'team') => void;
+  currentView: string;
   isOpen: boolean; // Control visibility on mobile
   onClose: () => void; // Close handler for mobile overlay
   credits: number; // Dynamic credits
@@ -14,10 +14,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView, isOpen, onCl
   // Base classes for sidebar container
   const sidebarClasses = `
     absolute md:relative top-0 left-0 h-full w-[260px] 
-    bg-[#050511]/95 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none
-    border-r border-white/10 z-50 
+    bg-[#0f172a] md:bg-[#0f172a]/90 backdrop-blur-xl
+    border-r border-white/5 z-50 
     transition-transform duration-300 ease-in-out flex flex-col
     ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+  `;
+
+  const navItemClass = (isActive: boolean) => `
+    flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium mb-1
+    ${isActive 
+        ? 'bg-gradient-to-r from-[#2563eb]/20 to-[#2563eb]/5 text-white border-l-2 border-[#2563eb]' 
+        : 'text-slate-400 hover:text-white hover:bg-white/5 border-l-2 border-transparent'}
   `;
 
   return (
@@ -32,70 +39,114 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView, isOpen, onCl
 
         <aside className={sidebarClasses}>
           {/* Sidebar Header */}
-          <div className="p-6 pb-2">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-fuchsia-600 to-purple-700 flex items-center justify-center shadow-[0_0_15px_rgba(192,38,211,0.4)] border border-white/10 shrink-0">
-                    <i className="fa-solid fa-layer-group text-xl text-white"></i>
-                </div>
-                <div className="leading-tight">
-                    <h1 className="text-sm font-semibold text-white font-sans">Painel de<br/>Experiências</h1>
-                </div>
-                <button onClick={onClose} className="md:hidden ml-auto text-white/50 hover:text-white">
-                    <i className="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div className="text-xs font-medium text-white/50 mb-2 uppercase tracking-wide px-1">Criador Pro</div>
+          <div className="p-6 pb-2 flex items-center gap-3">
+             <div className="w-8 h-8 rounded bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <span className="material-symbols-outlined text-white text-lg">grid_view</span>
+             </div>
+             <div>
+                <h1 className="font-bold text-white text-base leading-none">AgencyOS</h1>
+                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Pro Workspace</span>
+             </div>
+             <button onClick={onClose} className="md:hidden ml-auto text-white/50 hover:text-white">
+                <i className="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <div className="px-6 py-4">
+              <div className="bg-[#1e293b] rounded-xl p-3 border border-white/5">
+                  <div className="flex items-center gap-3 mb-2">
+                      <img src="https://ui-avatars.com/api/?name=Lucas+Dev&background=random" className="w-8 h-8 rounded-full" alt="User" />
+                      <div className="flex flex-col">
+                          <span className="text-xs font-bold text-white">Lucas Dev</span>
+                          <span className="text-[10px] text-slate-400">Admin</span>
+                      </div>
+                  </div>
+              </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 flex flex-col gap-1 w-full">
-            <button 
-                onClick={() => { onNavigate('dashboard'); onClose(); }}
-                className={`flex items-center gap-3 px-6 py-3 transition-all duration-300 text-left ${currentView === 'dashboard' ? 'nav-item-active text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
-            >
-                <i className={`fa-solid fa-border-all text-lg w-6 ${currentView === 'dashboard' ? 'text-fuchsia-300' : ''}`}></i>
-                <span className="text-sm font-medium">Dashboard</span>
-            </button>
+          <nav className="flex-1 flex flex-col px-4 overflow-y-auto custom-scrollbar">
+            
+            <div className="mb-6">
+                <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Gestão</p>
+                <button 
+                    onClick={() => { onNavigate('dashboard'); onClose(); }}
+                    className={navItemClass(currentView === 'dashboard')}
+                >
+                    <span className="material-symbols-outlined text-[20px]">dashboard</span>
+                    <span>Dashboard</span>
+                </button>
+                <button 
+                    onClick={() => { onNavigate('projects'); onClose(); }}
+                    className={navItemClass(currentView === 'projects')}
+                >
+                    <span className="material-symbols-outlined text-[20px]">folder_open</span>
+                    <span>Projetos</span>
+                    <span className="ml-auto bg-amber-500/20 text-amber-400 text-[10px] px-1.5 rounded">5</span>
+                </button>
+                <button 
+                    onClick={() => { onNavigate('crm'); onClose(); }}
+                    className={navItemClass(currentView === 'crm')}
+                >
+                    <span className="material-symbols-outlined text-[20px]">group</span>
+                    <span>CRM & Leads</span>
+                </button>
+                <button 
+                    onClick={() => { onNavigate('finance'); onClose(); }}
+                    className={navItemClass(currentView === 'finance')}
+                >
+                    <span className="material-symbols-outlined text-[20px]">attach_money</span>
+                    <span>Financeiro</span>
+                </button>
+                 <button 
+                    onClick={() => { onNavigate('team'); onClose(); }}
+                    className={navItemClass(currentView === 'team')}
+                >
+                    <span className="material-symbols-outlined text-[20px]">diversity_3</span>
+                    <span>Equipe</span>
+                </button>
+            </div>
 
-            <button 
-                onClick={() => { onNavigate('create'); onClose(); }}
-                className={`flex items-center gap-3 px-6 py-3 transition-all duration-300 text-left ${currentView === 'create' ? 'nav-item-active text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
-            >
-                <i className={`fa-regular fa-clone text-lg w-6 ${currentView === 'create' ? 'text-fuchsia-300' : ''}`}></i>
-                <span className="text-sm font-medium">Carrossel Glass</span>
-            </button>
+            <div>
+                <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Estúdio Criativo (IA)</p>
+                <button 
+                    onClick={() => { onNavigate('create'); onClose(); }}
+                    className={navItemClass(currentView === 'create')}
+                >
+                    <span className="material-symbols-outlined text-[20px] text-fuchsia-400">view_carousel</span>
+                    <span>Carrossel Glass</span>
+                </button>
 
-            <button 
-                onClick={() => { onNavigate('creative'); onClose(); }}
-                className={`flex items-center gap-3 px-6 py-3 transition-all duration-300 text-left ${currentView === 'creative' ? 'nav-item-active text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
-            >
-                <i className={`fa-regular fa-image text-lg w-6 ${currentView === 'creative' ? 'text-fuchsia-300' : ''}`}></i>
-                <span className="text-sm font-medium">Criativos (6x)</span>
-            </button>
+                <button 
+                    onClick={() => { onNavigate('creative'); onClose(); }}
+                    className={navItemClass(currentView === 'creative')}
+                >
+                    <span className="material-symbols-outlined text-[20px] text-purple-400">photo_library</span>
+                    <span>Criativos Ads</span>
+                </button>
 
-            <button 
-                onClick={() => { onNavigate('motion'); onClose(); }}
-                className={`flex items-center gap-3 px-6 py-3 transition-all duration-300 text-left ${currentView === 'motion' ? 'nav-item-active text-white' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
-            >
-                <i className={`fa-solid fa-satellite-dish text-lg w-6 ${currentView === 'motion' ? 'text-fuchsia-300' : ''}`}></i>
-                <span className="text-sm font-medium">Motion Studio</span>
-            </button>
+                <button 
+                    onClick={() => { onNavigate('motion'); onClose(); }}
+                    className={navItemClass(currentView === 'motion')}
+                >
+                    <span className="material-symbols-outlined text-[20px] text-cyan-400">movie_filter</span>
+                    <span>Motion Studio</span>
+                </button>
+            </div>
           </nav>
 
           {/* Sidebar Footer: Tokens */}
-          <div className="p-6 mt-auto">
-            <div className="glass-panel p-4 rounded-2xl bg-white/5 border-t border-white/10">
-                <div className="flex justify-between items-end mb-2">
-                    <span className="text-xs text-white/90 font-medium">Tokens Restantes</span>
-                    <span className="text-[10px] text-fuchsia-300 font-mono">{credits}</span>
-                </div>
-                {/* Progress Bar */}
-                <div className="w-full h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
-                    <div 
-                        className="h-full bg-gradient-to-r from-fuchsia-500 to-cyan-400 rounded-full shadow-[0_0_10px_rgba(247,37,133,0.5)] transition-all duration-500"
-                        style={{ width: `${(credits / 1000) * 100}%` }}
-                    ></div>
-                </div>
+          <div className="p-4 mt-auto border-t border-white/5 bg-[#0f172a]">
+            <div className="flex justify-between items-end mb-2">
+                <span className="text-xs text-slate-400 font-medium">Tokens IA</span>
+                <span className="text-[10px] text-emerald-400 font-mono font-bold">{credits} / 1000</span>
+            </div>
+            {/* Progress Bar */}
+            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                    style={{ width: `${(credits / 1000) * 100}%` }}
+                ></div>
             </div>
           </div>
         </aside>
