@@ -16,13 +16,6 @@ interface GeneratorViewProps {
     onBack: () => void;
 }
 
-// State interface for the Modal (similar to Creative View)
-interface PreviewState {
-    slideIndex: number;
-    history: string[]; // History of background images
-    currentStep: number;
-}
-
 const LOADING_STEPS = [
     "Agente de Pesquisa: Consultando Google...",
     "Analisando tópico e audiência...",
@@ -53,17 +46,6 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
     
     const [generatingImages, setGeneratingImages] = useState<Record<number, boolean>>({});
     
-    // --- EDITOR MODAL STATE ---
-    const [previewData, setPreviewData] = useState<PreviewState | null>(null);
-    const [editPrompt, setEditPrompt] = useState('');
-    const [isEditing, setIsEditing] = useState(false);
-    const [uploadedAsset, setUploadedAsset] = useState<string | null>(null);
-    const [isComparing, setIsComparing] = useState(false);
-    const [useProModel, setUseProModel] = useState(false);
-    const assetInputRef = useRef<HTMLInputElement>(null);
-
-    const resultsEndRef = useRef<HTMLDivElement>(null);
-
     const [config, setConfig] = useState<GenerationConfig>({
         slideCount: 5,
         tone: ToneType.PROFESSIONAL,
@@ -77,6 +59,11 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         styleCategory: StyleCategory.COMMERCIAL,
         audience: ''
     });
+
+    // Ensure Assistant is closed on mount
+    useEffect(() => {
+        setIsAssistantOpen(false);
+    }, []);
 
     // DnD Sensors
     const sensors = useSensors(
@@ -102,14 +89,10 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         }
     };
 
-    // --- REMIX LOGIC (Instant Style Change) ---
     const handleRemixStyle = (newStyle: string) => {
         setConfig(prev => ({ ...prev, style: newStyle }));
-        // Just update config triggers re-render of SlideCard with new style prop
-        // No API call needed unless we regenerate images
     };
 
-    // ... (Existing Autosave, Update Slide, Speak Input, etc. methods - keeping them mostly same) ...
     // --- AUTO SAVE & RECOVERY ---
     useEffect(() => {
         const savedData = localStorage.getItem('autosave_carousel_data');
@@ -142,13 +125,6 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         );
         setData({ ...data, slides: newSlides });
     };
-
-    const handleSpeakInput = async () => {
-        if (!inputValue.trim() || isSpeakingInput) return;
-        setIsSpeakingInput(true);
-        try { await generateAndPlaySpeech(inputValue); } catch(e) { console.error(e); }
-        finally { setIsSpeakingInput(false); }
-    }
 
     const handleRegenerateSingleImage = async (slideNumber: number) => {
         if (!data) return;
@@ -214,26 +190,6 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
         } finally { setIsLoading(false); }
     };
 
-    // ... (Skipping Editor Logic for brevity, assume unchanged except imports) ...
-    // Placeholder to keep TS happy if methods are used below
-    const handleUndo = () => {}; 
-    const handleDownloadSingle = () => {};
-    const getModalDisplayImage = () => "";
-    const handleEditImage = async (b:boolean) => {};
-    const handleAssetUpload = (e: any) => {};
-
-    const handleRefine = async () => {
-        if (!refinementPrompt.trim() || !data) return;
-        setIsRefining(true);
-        setError(null);
-        try {
-            const result = await refineCarousel(data, refinementPrompt, config);
-            setData(result);
-            setRefinementPrompt('');
-        } catch (err) { setError('Erro ao refinar.'); console.error(err); } 
-        finally { setIsRefining(false); }
-    };
-
     const handleExportImages = async (format: 'zip' | 'pdf' = 'zip') => {
         if (!data) return;
         setIsDownloading(true);
@@ -283,7 +239,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
             />
 
             {/* Header Area */}
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 shrink-0">
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors border border-transparent hover:border-white/10">
                         <span className="material-symbols-outlined">arrow_back</span>
@@ -306,7 +262,8 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                     
                     <button 
                         onClick={() => setIsAssistantOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/50 text-white rounded-full shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:bg-primary/30 transition-all group"
+                        className={`flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/50 text-white rounded-full shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:bg-primary/30 transition-all group ${isAssistantOpen ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={isAssistantOpen}
                     >
                         <span className="material-symbols-outlined group-hover:rotate-12 transition-transform">smart_toy</span>
                         <span className="text-sm font-bold hidden sm:inline">Co-piloto IA</span>
@@ -314,14 +271,14 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start h-full overflow-hidden">
                 {/* Configuration Sidebar */}
                 {!isZenMode && (
-                    <div className="lg:col-span-3 order-2 lg:order-1 animate-in fade-in slide-in-from-left-4 duration-300 flex flex-col gap-4">
+                    <div className="lg:col-span-3 order-2 lg:order-1 animate-in fade-in slide-in-from-left-4 duration-300 flex flex-col gap-4 h-full overflow-hidden">
                         <ConfigPanel config={config} setConfig={setConfig} disabled={isLoading || isRefining} />
                         
-                        {/* STYLE REMIXER (New Feature) */}
-                        <div className="bg-[#050511] lg:rounded-2xl border border-white/10 p-4">
+                        {/* STYLE REMIXER (Instant Style Change) */}
+                        <div className="bg-[#050511] lg:rounded-2xl border border-white/5 p-4 shadow-lg shrink-0">
                             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                 <span className="material-symbols-outlined text-sm text-pink-400">palette</span>
                                 Visual Remix (Instant)
@@ -331,7 +288,7 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                                     <button 
                                         key={styleName}
                                         onClick={() => handleRemixStyle(styleName)}
-                                        className="text-[9px] bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg py-2 px-1 text-center truncate transition-all hover:border-pink-500/50"
+                                        className="text-[9px] bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg py-2 px-1 text-center truncate transition-all hover:border-pink-500/50 text-slate-300 hover:text-white"
                                     >
                                         {styleName}
                                     </button>
@@ -342,25 +299,35 @@ const GeneratorView: React.FC<GeneratorViewProps> = ({ onBack }) => {
                 )}
 
                 {/* Main Content */}
-                <div className={`${isZenMode ? 'lg:col-span-12' : 'lg:col-span-9'} order-1 lg:order-2 flex flex-col gap-8 pb-24 transition-all duration-300`}>
+                <div className={`${isZenMode ? 'lg:col-span-12' : 'lg:col-span-9'} order-1 lg:order-2 flex flex-col gap-8 pb-24 transition-all duration-300 h-full overflow-y-auto custom-scrollbar`}>
                     
-                    {/* Input Panel omitted for brevity, same as before... */}
+                    {/* Input Panel */}
                     {!data && !isLoading && (
-                         <div className={`glass-panel p-6 rounded-2xl shadow-xl transition-all duration-300`}>
-                             {/* ... Input Logic same as original ... */}
-                             <div className="relative group">
+                         <div className="flex flex-col gap-4 pt-10">
+                             {/* Large White Input Box Mockup (matching reference) */}
+                             <div className="bg-white rounded-2xl p-6 shadow-2xl relative min-h-[160px] flex flex-col justify-center border-4 border-white/10">
                                 <textarea 
-                                    className="w-full h-24 glass-input-premium p-5 resize-none text-lg leading-relaxed font-display" 
-                                    placeholder="Ex: 5 Dicas para Liderança Remota..." 
+                                    className="w-full bg-transparent border-none p-0 resize-none text-2xl font-display font-medium text-slate-900 placeholder:text-slate-300 focus:ring-0 leading-tight" 
+                                    placeholder="Descreva seu tópico aqui..." 
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
+                                    autoFocus
                                 />
-                                <div className="absolute bottom-3 right-3">
-                                    <button onClick={handleGenerate} className="text-[10px] font-bold text-white px-4 py-1.5 rounded-md bg-gradient-to-r from-primary to-accent hover:from-primary/90 border border-white/20 transition-all flex items-center gap-2">
+                                <div className="absolute bottom-6 right-6 flex items-center gap-3">
+                                    <button 
+                                        onClick={handleGenerate} 
+                                        className="bg-[#f43f5e] hover:bg-[#e11d48] text-white font-bold px-6 py-2.5 rounded-full shadow-lg shadow-rose-500/30 transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
+                                    >
                                         <span>Gerar Mágica</span>
-                                        <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                                        <span className="material-symbols-outlined text-lg">auto_awesome</span>
                                     </button>
                                 </div>
+                             </div>
+                             
+                             <div className="flex justify-center gap-4 text-slate-500 text-xs font-medium">
+                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">bolt</span> Rápido</span>
+                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">auto_awesome</span> IA Generativa</span>
+                                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">verified</span> Profissional</span>
                              </div>
                          </div>
                     )}

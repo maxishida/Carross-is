@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MotionConfig, MotionMode, MotionStyle, MotionVisualTheme, MotionAspectRatio, MotionChatMessage, GeneratedVeoData, MotionScene } from '../types';
-import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent, extendVeoVideo, generateVeoWithReferences, generateSocialImage } from '../services/geminiService';
+import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent, extendVeoVideo, generateVeoWithReferences, generateSocialImage, extractMapParameters } from '../services/geminiService';
 
 interface MotionGeneratorViewProps {
     onBack: () => void;
@@ -102,7 +102,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         setIsStoryboardMode(false);
         
         let content = `Modo alterado para: ${mode}`;
-        if (mode === MotionMode.MAPS) content = "Modo Mapas Ativado. Posso usar o Google Maps (Gemini 2.5) para realismo.";
+        if (mode === MotionMode.MAPS) content = "Modo Mapas Ativado. Diga a origem e o destino (ex: 'De Paris para Londres').";
             
         setChatHistory(prev => [...prev, {
             id: Date.now().toString(),
@@ -263,20 +263,47 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
             } 
             else {
                 if (currentMode === MotionMode.MAPS) {
-                    if (!config.mapStart || !config.mapEnd) throw new Error("Defina origem e destino.");
-                    finalPrompt = generateMapPrompt(config.mapStart, config.mapEnd, config.mapStyle || 'Satellite', config.mapDataExplosion || false);
-                    setLoadingStep('Veo: Renderizando topografia 3D...');
+                    // --- MAPS MODE INTELLIGENCE ---
+                    // 1. Try to extract params from natural language
+                    setLoadingStep("Extraindo coordenadas...");
+                    const params = await extractMapParameters(promptText);
+                    const newStart = params.start || config.mapStart;
+                    const newEnd = params.end || config.mapEnd;
+
+                    // 2. Update state if found
+                    if (params.start || params.end) {
+                         setConfig(prev => ({ ...prev, mapStart: newStart, mapEnd: newEnd }));
+                    }
+
+                    // 3. Validation - If missing, ask the user instead of erroring
+                    if (!newStart || !newEnd) {
+                        setChatHistory(prev => [...prev, {
+                            id: Date.now().toString(),
+                            role: 'assistant',
+                            content: `📍 Modo Mapas: Identifiquei ${newEnd ? `Destino: **${newEnd}**` : ''} ${newStart ? `Origem: **${newStart}**` : ''}. \n\n${!newStart ? 'Qual o ponto de partida (Origem)?' : 'Qual o destino?'}`
+                            timestamp: Date.now()
+                        }]);
+                        setIsGenerating(false);
+                        return; // EXIT early
+                    }
+
+                    // 4. Generate if valid
+                    finalPrompt = generateMapPrompt(newStart, newEnd, config.mapStyle || 'Satellite', config.mapDataExplosion || false);
+                    setLoadingStep(`Veo: Renderizando rota ${newStart} -> ${newEnd}...`);
                     videoResult = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
                 } 
                 else if (currentMode === MotionMode.DATA) {
-                    if (!config.chartData) throw new Error("Insira os dados do gráfico.");
-                    finalPrompt = generateDataPrompt(config.chartType || 'Bar', config.chartData, config.visualTheme);
+                    if (!config.chartData && !promptText) throw new Error("Insira os dados do gráfico.");
+                    // Assume promptText IS the data if chartData is empty
+                    const dataToUse = config.chartData || promptText;
+                    finalPrompt = generateDataPrompt(config.chartType || 'Bar', dataToUse, config.visualTheme);
                     setLoadingStep('Veo: Animando dados com Easy-ease...');
                     videoResult = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
                 }
                 else if (currentMode === MotionMode.TYPOGRAPHY) {
-                     if (!config.typoText) throw new Error("Insira o texto para animar.");
-                     finalPrompt = generateTypographyPrompt(config.typoText);
+                     const textToUse = config.typoText || promptText;
+                     if (!textToUse) throw new Error("Insira o texto para animar.");
+                     finalPrompt = generateTypographyPrompt(textToUse);
                      setLoadingStep('Veo: Aplicando Kinetic Typography...');
                      videoResult = await generateVeoVideo(finalPrompt, MotionStyle.KINETIC_TYPO, config.aspectRatio);
                 } 

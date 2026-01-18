@@ -25,29 +25,29 @@ const STYLES_BY_CATEGORY: Record<StyleCategory, string[]> = {
 
 const LAYOUT_SUGGESTIONS: Record<CarouselGoal, Array<{ label: string, slides: number, icon: string, description: string }>> = {
     [CarouselGoal.GROWTH]: [
-        { label: 'Post Único Impactante', slides: 1, icon: 'crop_square', description: 'Imagem única com alta viralidade' },
-        { label: 'Carrossel Curto', slides: 4, icon: 'view_week', description: 'Rápido de consumir (3-4 slides)' },
-        { label: 'Twitter Thread Style', slides: 7, icon: 'lists', description: 'Texto focado em narrativa' }
+        { label: 'Post Único Impactante', slides: 1, icon: 'crop_square', description: 'Imagem única viral' },
+        { label: 'Carrossel Curto', slides: 4, icon: 'view_week', description: 'Rápido (3-4 slides)' },
+        { label: 'Twitter Thread', slides: 7, icon: 'format_list_bulleted', description: 'Narrativa longa' }
     ],
     [CarouselGoal.SALES]: [
         { label: 'Método AIDA', slides: 4, icon: 'ads_click', description: 'Atenção, Interesse, Desejo, Ação' },
         { label: 'Vitrine de Produto', slides: 3, icon: 'storefront', description: 'Destaque visual do produto' },
-        { label: 'Quebra de Objeções', slides: 6, icon: 'verified', description: 'Prova social e garantia' }
+        { label: 'Quebra de Objeções', slides: 6, icon: 'verified_user', description: 'Prova social e garantia' }
     ],
     [CarouselGoal.ENGAGEMENT]: [
         { label: 'Lista/Checklist', slides: 5, icon: 'checklist', description: 'Salvável e prático' },
-        { label: 'Quiz Interativo', slides: 4, icon: 'quiz', description: 'Pergunta e Resposta no final' },
-        { label: 'Meme/Relatável', slides: 3, icon: 'mood', description: 'Conexão emocional rápida' }
+        { label: 'Quiz Interativo', slides: 4, icon: 'quiz', description: 'Pergunta e Resposta' },
+        { label: 'Meme/Relatável', slides: 3, icon: 'sentiment_satisfied', description: 'Conexão rápida' }
     ],
     [CarouselGoal.AUTHORITY]: [
-        { label: 'Deep Dive (Aula)', slides: 8, icon: 'school', description: 'Conteúdo denso e educativo' },
-        { label: 'Passo a Passo', slides: 6, icon: 'steps', description: 'Tutorial "Como fazer"' },
+        { label: 'Deep Dive (Aula)', slides: 8, icon: 'school', description: 'Conteúdo denso' },
+        { label: 'Passo a Passo', slides: 6, icon: 'format_list_numbered', description: 'Tutorial "Como fazer"' },
         { label: 'Estudo de Caso', slides: 5, icon: 'analytics', description: 'Análise de resultados' }
     ],
     [CarouselGoal.VIRAL]: [
-        { label: 'Opinião Polêmica', slides: 3, icon: 'campaign', description: 'Gera debate nos comentários' },
-        { label: 'Antes x Depois', slides: 2, icon: 'compare', description: 'Transformação visual' },
-        { label: 'Grid 3x3 (Conceito)', slides: 9, icon: 'grid_view', description: 'Mosaico visual impactante' }
+        { label: 'Opinião Polêmica', slides: 3, icon: 'campaign', description: 'Gera debate' },
+        { label: 'Antes x Depois', slides: 2, icon: 'compare_arrows', description: 'Transformação visual' },
+        { label: 'Grid 3x3', slides: 9, icon: 'grid_view', description: 'Mosaico visual' }
     ]
 };
 
@@ -250,62 +250,62 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
   const suggestedLayouts = LAYOUT_SUGGESTIONS[config.goal || CarouselGoal.AUTHORITY] || [];
 
   return (
-    <div className="bg-[#050511] lg:rounded-2xl border border-white/10 flex flex-col gap-6 p-6 h-fit lg:sticky top-6">
+    <div className="bg-[#050511] lg:rounded-2xl border border-white/5 flex flex-col gap-6 p-6 h-fit max-h-[calc(100vh-100px)] lg:sticky top-6 shadow-2xl overflow-y-auto custom-scrollbar">
       
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/10">
+      <div className="flex items-center justify-between pb-4 border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-xl">tune</span>
             <h3 className="font-bold text-lg text-white font-display">Ultra Configuração</h3>
         </div>
         
-        {/* Reset Button */}
         <button 
             onClick={handleResetDefaults}
-            className="text-slate-500 hover:text-red-400 transition-colors tooltip-trigger"
-            title="Resetar Padrões e Limpar Cache"
+            className="text-slate-500 hover:text-white transition-colors"
         >
-            <span className="material-symbols-outlined text-[18px]">restart_alt</span>
+            <span className="material-symbols-outlined text-[16px]">restart_alt</span>
         </button>
       </div>
 
       {/* Goal Selector */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 shrink-0">
          <div className="flex justify-between items-center">
-             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Objetivo do Carrossel
              </label>
              {loadedDefaults && (
                  <span className="text-[9px] text-green-500/80 flex items-center gap-1">
-                     <span className="material-symbols-outlined text-[10px]">save</span>
+                     <span className="material-symbols-outlined text-[12px]">save</span>
                      Auto-save
                  </span>
              )}
          </div>
-         <div className="relative">
+         <div className="relative group">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-primary">
+                <span className="material-symbols-outlined text-[18px]">flag</span>
+            </div>
             <select 
-                className="w-full p-3 pl-10 text-xs text-white bg-[#0f172a] border border-white/10 rounded-xl focus:ring-primary focus:border-primary appearance-none font-medium transition-colors"
+                className="w-full p-3 pl-10 text-xs text-white bg-[#0b0f19] border border-white/10 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary appearance-none font-medium transition-all group-hover:border-white/20"
                 value={config.goal || CarouselGoal.AUTHORITY}
                 onChange={handleGoalChange}
                 disabled={disabled}
             >
                 {Object.values(CarouselGoal).map((goal) => (
-                    <option key={goal} value={goal} className="bg-slate-900 text-white">{goal}</option>
+                    <option key={goal} value={goal} className="bg-[#0b0f19]">{goal}</option>
                 ))}
             </select>
-            <span className="absolute left-3 top-3 pointer-events-none material-symbols-outlined text-[18px] text-primary">flag</span>
-            <span className="absolute right-3 top-3 pointer-events-none material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
          </div>
       </div>
 
       {/* Audience Input */}
-      <div className="flex flex-col gap-2">
-         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+      <div className="flex flex-col gap-2 shrink-0">
+         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
             Público Alvo
          </label>
          <input 
             type="text"
-            className="w-full p-3 text-xs text-white bg-[#0f172a] border border-white/10 rounded-xl focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none transition-colors"
+            className="w-full p-3 text-xs text-white bg-[#0b0f19] border border-white/10 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-slate-600 outline-none transition-all hover:border-white/20"
             placeholder="Ex: Empreendedores, Designers..."
             value={config.audience || ''}
             onChange={(e) => setConfig(prev => ({ ...prev, audience: e.target.value }))}
@@ -313,32 +313,41 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
          />
       </div>
 
-      {/* Brand Knowledge Base (NEW) */}
-      <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-              <span>Base de Conhecimento (RAG)</span>
-              <span className="text-green-400 text-[9px] border border-green-500/30 px-1.5 rounded bg-green-500/10">Feature #2</span>
-          </label>
+      {/* Brand Knowledge Base (RAG) */}
+      <div className="flex flex-col gap-2 shrink-0">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Base de Conhecimento (RAG)
+            </label>
+            <span className="text-[9px] font-bold text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 rounded tracking-wide">
+                FEATURE #2
+            </span>
+          </div>
           
           {!config.knowledgeBaseContent ? (
               <div 
                 onClick={() => !readingKb && kbInputRef.current?.click()}
-                className={`h-16 border border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-white/5 transition-all group ${disabled || readingKb ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`h-16 border border-dashed border-white/10 bg-white/[0.02] rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all group ${disabled || readingKb ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                   {readingKb ? (
                       <span className="material-symbols-outlined animate-spin text-slate-500">sync</span>
                   ) : (
-                      <span className="material-symbols-outlined text-slate-500 group-hover:text-green-400">upload_file</span>
+                      <span className="material-symbols-outlined text-slate-500 group-hover:text-emerald-400 transition-colors">upload_file</span>
                   )}
-                  <p className="text-[9px] text-slate-500">{readingKb ? 'Lendo...' : 'Upload PDF/TXT (Contexto)'}</p>
+                  <p className="text-[9px] text-slate-500 group-hover:text-slate-300 transition-colors">{readingKb ? 'Processando...' : 'Upload PDF/TXT (Contexto)'}</p>
               </div>
           ) : (
-              <div className="flex items-center justify-between bg-green-900/20 border border-green-500/30 p-2 rounded-lg">
-                  <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="material-symbols-outlined text-green-400 text-sm">description</span>
-                      <span className="text-[10px] text-green-200 truncate max-w-[150px]">{config.knowledgeBaseFileName || 'Arquivo Carregado'}</span>
+              <div className="flex items-center justify-between bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-xl group hover:border-emerald-500/40 transition-all">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                        <span className="material-symbols-outlined text-sm">description</span>
+                      </div>
+                      <div className="flex flex-col truncate">
+                        <span className="text-[10px] font-bold text-emerald-100 truncate max-w-[120px]">{config.knowledgeBaseFileName || 'Arquivo Carregado'}</span>
+                        <span className="text-[9px] text-emerald-500/70">Contexto Ativo</span>
+                      </div>
                   </div>
-                  <button onClick={removeKb} className="text-green-400 hover:text-white">
+                  <button onClick={removeKb} className="text-emerald-500/50 hover:text-emerald-400 transition-colors p-1">
                       <span className="material-symbols-outlined text-sm">close</span>
                   </button>
               </div>
@@ -353,82 +362,92 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
           />
       </div>
 
-      {/* DYNAMIC LAYOUT SUGGESTIONS */}
-      <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex justify-between">
-              <span>Sugestão de Layout</span>
-              {!hideSlideCount && <span className="text-primary">{config.slideCount} Slides</span>}
-          </label>
-          <div className="grid grid-cols-1 gap-2">
+      {/* Layout Suggestions */}
+      <div className="flex flex-col gap-3 shrink-0">
+          <div className="flex justify-between items-center">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Sugestão de Layout
+            </label>
+            {!hideSlideCount && (
+                <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                    {config.slideCount} SLIDES
+                </span>
+            )}
+          </div>
+          
+          <div className="flex flex-col gap-2">
               {suggestedLayouts.map((layout) => (
                   <button
                       key={layout.label}
                       onClick={() => applyLayout(layout)}
                       disabled={disabled}
                       className={`
-                          group relative p-3 rounded-xl border text-left transition-all overflow-hidden
+                          group relative p-3 rounded-xl border text-left transition-all overflow-hidden flex items-center justify-between
                           ${config.layoutMode === layout.label 
-                              ? 'bg-primary/10 border-primary shadow-neon-primary' 
-                              : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}
+                              ? 'bg-[#1e1b4b]/50 border-primary/50 shadow-[0_0_15px_rgba(99,102,241,0.1)]' 
+                              : 'bg-[#0b0f19] border-white/5 hover:bg-white/5 hover:border-white/10'}
                       `}
                   >
-                      <div className="flex items-center justify-between relative z-10">
-                          <div className="flex items-center gap-3">
-                              <div className={`p-1.5 rounded-lg ${config.layoutMode === layout.label ? 'bg-primary text-white' : 'bg-black/30 text-slate-400 group-hover:text-white'}`}>
-                                  <span className="material-symbols-outlined text-[18px]">{layout.icon}</span>
-                              </div>
-                              <div className="flex flex-col">
-                                  <span className={`text-xs font-bold ${config.layoutMode === layout.label ? 'text-white' : 'text-slate-300'}`}>
-                                      {layout.label}
-                                  </span>
-                                  <span className="text-[9px] text-slate-500 font-medium">
-                                      {layout.description}
-                                  </span>
-                              </div>
+                      <div className="flex items-center gap-3">
+                          <div className={`
+                              size-9 rounded-lg flex items-center justify-center transition-colors
+                              ${config.layoutMode === layout.label ? 'bg-primary text-white' : 'bg-white/5 text-slate-500 group-hover:text-white'}
+                          `}>
+                              <span className="material-symbols-outlined text-[18px]">{layout.icon}</span>
                           </div>
-                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${config.layoutMode === layout.label ? 'bg-black/30 text-white' : 'bg-black/20 text-slate-500'}`}>
-                              {layout.slides}x
-                          </span>
+                          <div className="flex flex-col">
+                              <span className={`text-xs font-bold transition-colors ${config.layoutMode === layout.label ? 'text-white' : 'text-slate-300'}`}>
+                                  {layout.label}
+                              </span>
+                              <span className="text-[9px] text-slate-600 font-medium">
+                                  {layout.description}
+                              </span>
+                          </div>
                       </div>
-                      {/* Active Indicator Bar */}
+                      
                       {config.layoutMode === layout.label && (
-                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+                         <span className="material-symbols-outlined text-primary text-sm animate-in fade-in zoom-in">check_circle</span>
                       )}
                   </button>
               ))}
           </div>
       </div>
       
-      <div className="h-px bg-white/5 my-1"></div>
+      <div className="h-px bg-white/5 w-full shrink-0"></div>
 
-      {/* Brand Color Presets */}
-      <div className="flex flex-col gap-3">
+      {/* Brand Color */}
+      <div className="flex flex-col gap-3 shrink-0 pb-4">
          <div className="flex justify-between items-center">
-             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Cor da Marca
              </label>
-             <div className="flex items-center gap-2">
-                 <div className="size-3 rounded-full" style={{backgroundColor: config.brandColor || '#6366f1'}}></div>
-                 <span className="text-[10px] font-mono text-slate-500">{config.brandColor || '#6366f1'}</span>
-             </div>
+             <span className="text-[10px] font-mono text-slate-600 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                {config.brandColor || '#6366f1'}
+             </span>
          </div>
          
-         <div className="grid grid-cols-8 gap-2">
+         <div className="grid grid-cols-8 gap-2.5">
              {BRAND_PRESETS.map((preset) => (
                  <button
                     key={preset.color}
                     onClick={() => setConfig(prev => ({...prev, brandColor: preset.color}))}
-                    className={`size-6 rounded-full border transition-all ${config.brandColor === preset.color ? 'border-white scale-125 shadow-neon-glow' : 'border-transparent hover:scale-110'}`}
+                    className={`size-6 rounded-full transition-all relative group ${config.brandColor === preset.color ? 'ring-2 ring-white ring-offset-2 ring-offset-[#050511] scale-110' : 'hover:scale-110 hover:ring-1 hover:ring-white/50'}`}
                     style={{backgroundColor: preset.color}}
                     title={preset.name}
-                 />
+                 >
+                    {config.brandColor === preset.color && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="size-1.5 bg-white rounded-full shadow-sm"></div>
+                        </div>
+                    )}
+                 </button>
              ))}
          </div>
          
-         {/* Custom Picker Fallback */}
-         <div className="relative w-full h-8 bg-white/5 rounded-lg border border-white/10 flex items-center px-3 cursor-pointer hover:bg-white/10">
-             <span className="text-[10px] text-slate-400 flex-1">Customizar Hex...</span>
-             <span className="material-symbols-outlined text-[14px] text-slate-500">palette</span>
+         {/* Custom Picker */}
+         <div className="relative w-full h-9 bg-[#0b0f19] rounded-xl border border-white/10 flex items-center px-3 cursor-pointer hover:border-white/20 transition-colors group">
+             <span className="text-[10px] text-slate-400 flex-1 group-hover:text-slate-300">Customizar Hex...</span>
+             <span className="material-symbols-outlined text-[14px] text-slate-600 group-hover:text-slate-400">palette</span>
              <input 
                 type="color" 
                 value={config.brandColor || '#6366f1'}
@@ -436,153 +455,6 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
              />
          </div>
-      </div>
-
-      {/* Visual Reference with Style Analysis */}
-      <div className="flex flex-col gap-2">
-         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-             Referência Visual (IA)
-         </label>
-         
-         {!config.referenceImage ? (
-            <div 
-                onClick={() => !disabled && fileInputRef.current?.click()}
-                className={`h-24 border border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-all group ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-                 <span className="material-symbols-outlined text-slate-500 group-hover:text-primary">add_a_photo</span>
-                 <p className="text-[10px] text-slate-500">Carregar imagem de referência</p>
-            </div>
-         ) : (
-             <div className="flex flex-col gap-2">
-                 <div className="relative rounded-xl overflow-hidden border border-white/20 group h-24">
-                     <img src={config.referenceImage} className="w-full h-full object-cover" alt="Reference" />
-                     <button 
-                        onClick={removeImage}
-                        className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors z-20"
-                    >
-                         <span className="material-symbols-outlined text-[14px]">close</span>
-                     </button>
-                     <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[8px] text-white">Ref. Ativa</div>
-                 </div>
-                 
-                 {/* REVERSE ENGINEERING BUTTON */}
-                 <button
-                    onClick={handleAnalyzeStyle}
-                    disabled={analyzingStyle}
-                    className="w-full py-2 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 border border-purple-500/30 rounded-lg text-[10px] font-bold text-purple-200 flex items-center justify-center gap-2 transition-all"
-                 >
-                     {analyzingStyle ? (
-                         <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
-                     ) : (
-                         <span className="material-symbols-outlined text-[14px]">auto_fix_high</span>
-                     )}
-                     {analyzingStyle ? 'Analisando Estilo...' : 'Clonar Estilo Visual'}
-                 </button>
-             </div>
-         )}
-         <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept="image/*" 
-            onChange={handleImageUpload}
-            disabled={disabled}
-        />
-      </div>
-
-      {/* STYLE SELECTOR (CATEGORY + STYLE) */}
-      <div className="flex flex-col gap-3">
-         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Categoria de Estilo
-         </label>
-         <div className="relative">
-            <select 
-                className="w-full p-3 bg-[#0f172a] border border-white/10 rounded-xl text-xs text-white focus:border-primary appearance-none font-bold"
-                value={config.styleCategory || StyleCategory.COMMERCIAL}
-                onChange={(e) => {
-                    const newCat = e.target.value as StyleCategory;
-                    setConfig(prev => ({ 
-                        ...prev, 
-                        styleCategory: newCat,
-                        style: STYLES_BY_CATEGORY[newCat]?.[0] || '' // Reset style when category changes
-                    }));
-                }}
-                disabled={disabled}
-            >
-                {Object.values(StyleCategory).map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                ))}
-            </select>
-            <span className="absolute right-3 top-3 pointer-events-none material-symbols-outlined text-[18px] text-slate-500">category</span>
-         </div>
-
-         <div className="grid grid-cols-2 gap-2 mt-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
-             {currentStyles.map((s) => (
-                 <button
-                    key={s}
-                    onClick={() => setConfig(prev => ({ ...prev, style: s }))}
-                    disabled={disabled}
-                    className={`
-                        relative px-3 py-2.5 rounded-lg text-left transition-all border
-                        ${config.style === s 
-                            ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
-                            : 'bg-[#1e293b] text-slate-400 border-transparent hover:bg-slate-800 hover:text-white'}
-                    `}
-                 >
-                     <div className="flex items-center justify-between">
-                         <span className="text-[10px] font-bold truncate pr-1">
-                            {s}
-                         </span>
-                         {config.style === s && (
-                             <div className="size-1.5 rounded-full bg-purple-600"></div>
-                         )}
-                     </div>
-                 </button>
-             ))}
-         </div>
-         
-         {/* Custom Prompt Display if active */}
-         {config.style === 'Personalizado (Prompt)' && (
-             <textarea 
-                className="w-full h-20 bg-black/20 border border-white/10 rounded-lg p-2 text-[10px] text-slate-300 resize-none"
-                placeholder="Descreva o estilo visual..."
-                value={config.customStylePrompt || ''}
-                onChange={(e) => setConfig(prev => ({...prev, customStylePrompt: e.target.value}))}
-             />
-         )}
-      </div>
-
-      {/* Tone Selector & Brand Voice Cloning */}
-      <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-              <span>Tom de Voz / Clonagem</span>
-              <span className="text-primary text-[9px] border border-primary/30 px-1.5 rounded bg-primary/10">Feature #1</span>
-          </label>
-          <div className="flex flex-wrap gap-2 mb-2">
-              {Object.values(ToneType).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => handleToneChange(t)}
-                    disabled={disabled}
-                    className={`
-                        px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all
-                        ${config.tone === t 
-                            ? 'bg-white text-black border-white' 
-                            : 'bg-transparent text-slate-500 border-white/10 hover:border-white/30 hover:text-white'}
-                    `}
-                  >
-                      {t}
-                  </button>
-              ))}
-          </div>
-          
-          <textarea 
-             className="w-full h-24 bg-black/20 border border-white/10 rounded-xl p-3 text-[10px] text-slate-300 resize-none focus:border-primary focus:ring-1 focus:ring-primary"
-             placeholder="Ou cole um texto de exemplo da sua marca aqui para clonar o estilo de escrita..."
-             value={config.brandVoiceSample || ''}
-             onChange={(e) => setConfig(prev => ({...prev, brandVoiceSample: e.target.value}))}
-             disabled={disabled}
-          />
       </div>
 
     </div>
