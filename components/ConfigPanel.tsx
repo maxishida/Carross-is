@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { GenerationConfig, ToneType, VisualStyleType, CharacterStyleType, CarouselGoal, StyleCategory } from '../types';
-import { analyzeImageStyle } from '../services/geminiService';
+import { analyzeImageStyle, extractTextFromFile } from '../services/geminiService';
 
 interface ConfigPanelProps {
   config: GenerationConfig;
@@ -73,8 +73,10 @@ const BRAND_PRESETS = [
 
 const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, hideSlideCount }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const kbInputRef = useRef<HTMLInputElement>(null); // Knowledge Base Input
   const [loadedDefaults, setLoadedDefaults] = useState(false);
   const [analyzingStyle, setAnalyzingStyle] = useState(false);
+  const [readingKb, setReadingKb] = useState(false);
   
   // --- PERSISTENT BRAND KIT ---
   useEffect(() => {
@@ -88,6 +90,8 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
                   // Brand Identity
                   brandColor: kit.brandColor || prev.brandColor,
                   brandVoiceSample: kit.brandVoiceSample || prev.brandVoiceSample,
+                  knowledgeBaseContent: kit.knowledgeBaseContent || prev.knowledgeBaseContent,
+                  knowledgeBaseFileName: kit.knowledgeBaseFileName || prev.knowledgeBaseFileName,
                   
                   // Strategy
                   goal: kit.goal || prev.goal,
@@ -122,6 +126,8 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
           tone: config.tone,
           audience: config.audience,
           brandVoiceSample: config.brandVoiceSample,
+          knowledgeBaseContent: config.knowledgeBaseContent, // Save KB too
+          knowledgeBaseFileName: config.knowledgeBaseFileName,
           goal: config.goal,
           aspectRatio: config.aspectRatio,
           includePeople: config.includePeople,
@@ -135,6 +141,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       config.tone, 
       config.audience, 
       config.brandVoiceSample, 
+      config.knowledgeBaseContent,
       config.goal,
       config.aspectRatio,
       config.includePeople,
@@ -174,6 +181,27 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       reader.readAsDataURL(file);
     }
   };
+
+  const handleKbUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      setReadingKb(true);
+      try {
+          const text = await extractTextFromFile(file);
+          if (text) {
+              setConfig(prev => ({
+                  ...prev,
+                  knowledgeBaseContent: text,
+                  knowledgeBaseFileName: file.name
+              }));
+          }
+      } catch (e: any) {
+          alert(e.message || "Erro ao ler arquivo");
+      } finally {
+          setReadingKb(false);
+      }
+  };
   
   const handleAnalyzeStyle = async (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -203,6 +231,11 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
       e.stopPropagation(); 
       setConfig(prev => ({ ...prev, referenceImage: undefined }));
       if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeKb = () => {
+      setConfig(prev => ({ ...prev, knowledgeBaseContent: undefined, knowledgeBaseFileName: undefined }));
+      if (kbInputRef.current) kbInputRef.current.value = '';
   };
 
   const applyLayout = (layout: { label: string, slides: number }) => {
@@ -265,7 +298,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
          </div>
       </div>
 
-      {/* Audience Input (NEW) */}
+      {/* Audience Input */}
       <div className="flex flex-col gap-2">
          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Público Alvo
@@ -278,6 +311,46 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, setConfig, disabled, 
             onChange={(e) => setConfig(prev => ({ ...prev, audience: e.target.value }))}
             disabled={disabled}
          />
+      </div>
+
+      {/* Brand Knowledge Base (NEW) */}
+      <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+              <span>Base de Conhecimento (RAG)</span>
+              <span className="text-green-400 text-[9px] border border-green-500/30 px-1.5 rounded bg-green-500/10">Feature #2</span>
+          </label>
+          
+          {!config.knowledgeBaseContent ? (
+              <div 
+                onClick={() => !readingKb && kbInputRef.current?.click()}
+                className={`h-16 border border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-white/5 transition-all group ${disabled || readingKb ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                  {readingKb ? (
+                      <span className="material-symbols-outlined animate-spin text-slate-500">sync</span>
+                  ) : (
+                      <span className="material-symbols-outlined text-slate-500 group-hover:text-green-400">upload_file</span>
+                  )}
+                  <p className="text-[9px] text-slate-500">{readingKb ? 'Lendo...' : 'Upload PDF/TXT (Contexto)'}</p>
+              </div>
+          ) : (
+              <div className="flex items-center justify-between bg-green-900/20 border border-green-500/30 p-2 rounded-lg">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                      <span className="material-symbols-outlined text-green-400 text-sm">description</span>
+                      <span className="text-[10px] text-green-200 truncate max-w-[150px]">{config.knowledgeBaseFileName || 'Arquivo Carregado'}</span>
+                  </div>
+                  <button onClick={removeKb} className="text-green-400 hover:text-white">
+                      <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+              </div>
+          )}
+          <input 
+            type="file" 
+            ref={kbInputRef} 
+            className="hidden" 
+            accept=".pdf,.txt,.md" 
+            onChange={handleKbUpload}
+            disabled={disabled || readingKb}
+          />
       </div>
 
       {/* DYNAMIC LAYOUT SUGGESTIONS */}

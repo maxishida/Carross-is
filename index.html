@@ -1,6 +1,6 @@
 
 <!DOCTYPE html>
-<html class="dark" lang="pt-BR">
+<html lang="pt-BR">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -8,117 +8,120 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
     <script>
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
-                    colors: {
-                        "primary": "#6366f1", // Indigo Neon
-                        "accent": "#a855f7", // Purple Neon
-                        "neon-cyan": "#06b6d4",
-                        "background-dark": "#020617",
-                        "surface-dark": "#0f172a",
-                    },
                     fontFamily: {
-                        "display": ["Space Grotesk", "sans-serif"],
-                        "body": ["Noto Sans", "sans-serif"],
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
                     },
-                    boxShadow: {
-                        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
-                        'glass-inset': 'inset 0 0 20px rgba(255, 255, 255, 0.03)',
-                        'neon-primary': '0 0 5px theme("colors.primary"), 0 0 20px theme("colors.primary")',
-                        'neon-glow': '0 0 10px rgba(99, 102, 241, 0.5), 0 0 20px rgba(99, 102, 241, 0.3)',
+                    colors: {
+                        glass: {
+                            border: 'rgba(255, 255, 255, 0.1)',
+                            surface: 'rgba(255, 255, 255, 0.05)',
+                            highlight: 'rgba(255, 255, 255, 0.15)',
+                        },
+                        accent: {
+                            purple: '#F72585',
+                            cyan: '#4CC9F0',
+                            deep: '#240046'
+                        },
+                        // Mapping old colors to new palette or keeping for compatibility
+                        "primary": "#F72585", 
+                        "secondary": "#4CC9F0",
+                        "background-dark": "#0f0518",
+                        "surface-dark": "#1a0b2e",
+                        "neon-cyan": "#4CC9F0",
                     },
                     backgroundImage: {
-                        'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%)',
+                        'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
                     }
-                },
-            },
+                }
+            }
         }
     </script>
     <style type="text/tailwindcss">
         @layer utilities {
             .glass-panel {
-                @apply bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-glass bg-glass-gradient relative overflow-hidden;
+                @apply backdrop-blur-2xl border border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)];
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
             }
-            .glass-panel::before {
-                content: '';
-                @apply absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-70;
+            .glass-card {
+                @apply transition-all duration-300 border border-white/10;
             }
-            .glass-sidebar {
-                @apply bg-[#050511]/70 backdrop-blur-2xl border-r border-white/10 shadow-2xl;
+            .glass-card:hover {
+                transform: translateY(-4px);
+                border-color: rgba(255, 255, 255, 0.3);
+                box-shadow: 0 15px 40px -10px rgba(0,0,0,0.6);
             }
-            .glass-card-premium {
-                @apply bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-xl transition-all duration-300 relative overflow-hidden;
+            .nav-item-active {
+                background: linear-gradient(90deg, rgba(247, 37, 133, 0.25) 0%, rgba(247, 37, 133, 0.0) 100%);
+                border-left: 3px solid #F72585;
+                border-top: 1px solid rgba(255,255,255,0.1);
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                box-shadow: -5px 0 20px rgba(247, 37, 133, 0.3);
             }
-            .glass-card-premium:hover {
-                @apply border-primary/50 bg-white/[0.08] shadow-neon-primary -translate-y-1;
+            
+            /* Custom Scrollbar for the new design */
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
             }
-            .glass-input-premium {
-                @apply bg-black/30 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary focus:shadow-neon-primary text-white placeholder:text-slate-500 backdrop-blur-md transition-all outline-none;
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent; 
             }
-            .glass-button {
-                @apply bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all backdrop-blur-sm active:scale-95 hover:border-white/30;
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.1); 
+                border-radius: 10px;
             }
-            .glass-button-active {
-                @apply bg-primary/20 border-primary/60 text-primary shadow-[0_0_15px_rgba(99,102,241,0.25)] relative overflow-hidden;
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: rgba(255, 255, 255, 0.2); 
             }
-            .neon-text-glow {
-                @apply drop-shadow-[0_0_8px_rgba(255,255,255,0.6)];
-            }
-            .grid-bg {
-                background-size: 40px 40px;
-                background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            }
-        }
-
-        /* Global Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.15); 
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(99, 102, 241, 0.5); 
-        }
-
-        /* Range Slider Styling */
-        input[type=range] {
-            @apply h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            @apply appearance-none w-4 h-4 rounded-full bg-primary border-2 border-white/50 shadow-neon-primary transition-transform hover:scale-125;
-            margin-top: -6px;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            @apply h-1 bg-gradient-to-r from-primary/50 to-slate-800 rounded-lg;
         }
         
-        .custom-scrollbar::-webkit-scrollbar {
-            height: 6px;
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0f0518;
+            color: white;
+            overflow: hidden;
         }
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
+
+        .mesh-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(76, 201, 240, 0.4) 0%, transparent 40%),
+                radial-gradient(circle at 90% 10%, rgba(76, 201, 240, 0.3) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(58, 12, 163, 0.6) 0%, transparent 60%),
+                radial-gradient(circle at 20% 80%, rgba(247, 37, 133, 0.4) 0%, transparent 50%),
+                radial-gradient(circle at 80% 90%, rgba(114, 9, 183, 0.5) 0%, transparent 50%),
+                linear-gradient(135deg, #0a0118 0%, #240046 100%);
         }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+
+        .glow-spot {
+            position: absolute;
+            filter: blur(90px);
+            opacity: 0.7;
+            border-radius: 50%;
+            z-index: -1;
         }
     </style>
 <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
@@ -127,12 +130,13 @@
     "jspdf": "https://esm.sh/jspdf@2.5.1",
     "@dnd-kit/core": "https://esm.sh/@dnd-kit/core@6.1.0?external=react,react-dom",
     "@dnd-kit/sortable": "https://esm.sh/@dnd-kit/sortable@8.0.0?external=react,react-dom,@dnd-kit/core",
-    "@dnd-kit/utilities": "https://esm.sh/@dnd-kit/utilities@3.2.2?external=react,react-dom"
+    "@dnd-kit/utilities": "https://esm.sh/@dnd-kit/utilities@3.2.2?external=react,react-dom",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174"
   }
 }
 </script>
 </head>
-<body class="bg-background-dark text-slate-100 antialiased overflow-hidden font-body h-screen">
-    <div id="root" class="h-full"></div>
+<body class="bg-background-dark text-white antialiased overflow-hidden font-sans h-screen flex items-center justify-center">
+    <div id="root" class="h-full w-full flex items-center justify-center"></div>
 </body>
 </html>

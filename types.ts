@@ -65,6 +65,8 @@ export interface GenerationConfig {
   productImageUrl?: string;
   productName?: string;
   brandVoiceSample?: string;
+  knowledgeBaseContent?: string; // NEW: Store RAG text content
+  knowledgeBaseFileName?: string; // NEW: Store filename
 }
 
 // --- MOTION / VEO TYPES ---
@@ -132,6 +134,14 @@ export interface MotionConfig {
 export interface GeneratedVeoData {
     uri: string;
     asset: any; // The raw video asset object from Gemini API required for extension
+}
+
+export interface MotionScene {
+    id: string;
+    videoData: GeneratedVeoData;
+    prompt: string;
+    thumbnail?: string;
+    duration: number; // usually 5s or 8s
 }
 
 export interface MotionChatMessage {

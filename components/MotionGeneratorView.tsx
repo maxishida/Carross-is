@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MotionConfig, MotionMode, MotionStyle, MotionVisualTheme, MotionAspectRatio, MotionChatMessage, GeneratedVeoData } from '../types';
-import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent, extendVeoVideo, generateVeoWithReferences } from '../services/geminiService';
+import { MotionConfig, MotionMode, MotionStyle, MotionVisualTheme, MotionAspectRatio, MotionChatMessage, GeneratedVeoData, MotionScene } from '../types';
+import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent, extendVeoVideo, generateVeoWithReferences, generateSocialImage } from '../services/geminiService';
 
 interface MotionGeneratorViewProps {
     onBack: () => void;
@@ -20,19 +20,15 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
     const [config, setConfig] = useState<MotionConfig>({
         mode: MotionMode.STUDIO,
         topic: '',
-        style: MotionStyle.HERA_EVOLUTION, // Default to Hera
+        style: MotionStyle.HERA_EVOLUTION,
         visualTheme: MotionVisualTheme.NEON,
         aspectRatio: '16:9',
         fps: '60',
         resolution: '4K',
-        // Map Defaults
         mapStyle: 'Satellite',
         mapDataExplosion: false, 
-        // Data Defaults
         chartType: 'Bar',
-        // Typo Defaults
         typoText: '',
-        // Intelligence
         useThinking: false,
         useGrounding: 'none'
     });
@@ -48,10 +44,12 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
     ]);
     const [inputMessage, setInputMessage] = useState('');
     
-    // NEW: Supports up to 3 images
+    // Media & Storyboard State
     const [attachedImages, setAttachedImages] = useState<string[]>([]);
+    const [storyboardImages, setStoryboardImages] = useState<string[]>([]); // Generated candidate images
+    const [selectedStoryboardImage, setSelectedStoryboardImage] = useState<string | null>(null);
+    const [isStoryboardMode, setIsStoryboardMode] = useState(false);
     
-    // Legacy support for video upload analysis or fallback (keeps single string for video)
     const [attachedVideo, setAttachedVideo] = useState<string | null>(null);
     const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
     
@@ -61,9 +59,14 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
     // Generation State
     const [isGenerating, setIsGenerating] = useState(false);
-    const [currentVideoData, setCurrentVideoData] = useState<GeneratedVeoData | null>(null); // Changed from simple URI to full Data object
+    const [currentVideoData, setCurrentVideoData] = useState<GeneratedVeoData | null>(null);
     const [loadingStep, setLoadingStep] = useState('');
-    const [isExtendingMode, setIsExtendingMode] = useState(false); // State to track if user is extending
+    const [isExtendingMode, setIsExtendingMode] = useState(false);
+
+    // Timeline State
+    const [scenes, setScenes] = useState<MotionScene[]>([]);
+    const [isPlayingSequence, setIsPlayingSequence] = useState(false);
+    const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
 
     const scrollToBottom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,11 +74,32 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
     useEffect(() => { scrollToBottom(); }, [chatHistory]);
 
+    // --- PLAYBACK SEQUENCER ---
+    useEffect(() => {
+        if (isPlayingSequence && scenes.length > 0) {
+            const videoEl = document.getElementById('sequence-player') as HTMLVideoElement;
+            if (videoEl) {
+                videoEl.src = scenes[currentSceneIndex].videoData.uri;
+                videoEl.play();
+                videoEl.onended = () => {
+                    if (currentSceneIndex < scenes.length - 1) {
+                        setCurrentSceneIndex(prev => prev + 1);
+                    } else {
+                        setIsPlayingSequence(false);
+                        setCurrentSceneIndex(0);
+                    }
+                };
+            }
+        }
+    }, [isPlayingSequence, currentSceneIndex, scenes]);
+
     // --- HANDLERS ---
 
     const handleModeSwitch = (mode: MotionMode) => {
         setCurrentMode(mode);
         setConfig(prev => ({ ...prev, mode }));
+        setStoryboardImages([]);
+        setIsStoryboardMode(false);
         
         let content = `Modo alterado para: ${mode}`;
         if (mode === MotionMode.MAPS) content = "Modo Mapas Ativado. Posso usar o Google Maps (Gemini 2.5) para realismo.";
@@ -107,22 +131,17 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
             const isVideo = file.type.startsWith('video/');
             
             if (isVideo) {
-                // Video analysis mode (single file)
                 setMediaType('video');
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     setAttachedVideo(reader.result as string);
                     setInputMessage(prev => prev ? prev : "Analise este vídeo e extraia os principais movimentos para replicar no Veo.");
-                    // Clear images if video is set
                     setAttachedImages([]);
                 };
                 reader.readAsDataURL(file);
             } else {
-                // Image mode (up to 3)
                 setMediaType('image');
-                setAttachedVideo(null); // Clear video
-                
-                // Read all images up to 3 total
+                setAttachedVideo(null); 
                 const pendingImages: string[] = [];
                 let processedCount = 0;
                 const maxToAdd = 3 - attachedImages.length;
@@ -141,7 +160,6 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 });
             }
         }
-        // Reset input
         if(fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -150,9 +168,45 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         if (attachedImages.length <= 1) setMediaType(null);
     };
 
+    // --- STORYBOARD LOGIC ---
+    const handleGenerateStoryboard = async () => {
+        if (!inputMessage.trim()) return;
+        setIsGenerating(true);
+        setLoadingStep("Storyboard: Gerando 4 opções (Nano Banana)...");
+        
+        try {
+            const promises = Array(4).fill(0).map(() => generateSocialImage(inputMessage, '16:9'));
+            const results = await Promise.all(promises);
+            const validImages = results.filter(img => img !== null) as string[];
+            
+            if (validImages.length > 0) {
+                setStoryboardImages(validImages);
+                setIsStoryboardMode(true);
+                setChatHistory(prev => [...prev, {
+                    id: Date.now().toString(),
+                    role: 'assistant',
+                    content: `🎨 Gere 4 opções de estilo para sua cena. Selecione a melhor para animar com o Veo.`,
+                    timestamp: Date.now()
+                }]);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsGenerating(false);
+            setLoadingStep('');
+        }
+    };
+
+    const handleConfirmStoryboard = async () => {
+        if (!selectedStoryboardImage) return;
+        setAttachedImages([selectedStoryboardImage]); // Set as ref
+        setStoryboardImages([]); // Clear candidates
+        setIsStoryboardMode(false);
+        handleSendMessage(true); // Force send with ref
+    };
+
     const handleExtensionClick = () => {
         setIsExtendingMode(true);
-        // Add a system message guiding the user
         setChatHistory(prev => [...prev, {
             id: Date.now().toString(),
             role: 'system',
@@ -166,52 +220,48 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         setInputMessage('');
     };
 
-    const handleSendMessage = async () => {
-        if (!inputMessage.trim() && attachedImages.length === 0 && !attachedVideo && currentMode === MotionMode.STUDIO && !isExtendingMode) return;
+    const handleSendMessage = async (forceWithRef = false) => {
+        if (!inputMessage.trim() && attachedImages.length === 0 && !attachedVideo && currentMode === MotionMode.STUDIO && !isExtendingMode && !forceWithRef) return;
 
-        // 1. Add User Message
+        // User Msg
         const userMsg: MotionChatMessage = {
             id: Date.now().toString(),
             role: 'user',
             content: inputMessage || (attachedImages.length > 0 ? `Gerar vídeo com ${attachedImages.length} referências` : `Gerar vídeo no modo ${currentMode}`),
             timestamp: Date.now(),
-            attachment: attachedVideo || (attachedImages.length > 0 ? attachedImages[0] : undefined), // Just show first image as preview in chat
+            attachment: attachedVideo || (attachedImages.length > 0 ? attachedImages[0] : undefined),
             attachmentType: mediaType || undefined
         };
         setChatHistory(prev => [...prev, userMsg]);
         
-        // Reset Inputs
         const promptText = inputMessage;
         setInputMessage('');
         const currentImages = [...attachedImages];
         const currentVideo = attachedVideo;
         
-        setAttachedImages([]);
-        setAttachedVideo(null);
-        setMediaType(null);
+        // Don't clear images if we forced a ref gen (storyboard flow)
+        if (!forceWithRef) {
+            setAttachedImages([]);
+            setAttachedVideo(null);
+            setMediaType(null);
+        }
         
         setIsGenerating(true);
         
-        // Determine Loading State
         let stepText = 'Motion Director: Processando...';
         if (isExtendingMode) stepText = 'Veo 3.1: Estendendo timeline (+5s)...';
         else if (config.useThinking) stepText = 'Gemini 3 Pro: Pensando profundamente (Budget 32k)...';
-        else if (config.useGrounding === 'googleMaps') stepText = 'Gemini 2.5: Acessando Google Maps...';
-        else if (config.useGrounding === 'googleSearch') stepText = 'Gemini 3 Flash: Pesquisando tendências...';
         setLoadingStep(stepText);
 
         try {
             let finalPrompt = '';
             let videoResult: GeneratedVeoData | null = null;
 
-            // --- EXTENSION LOGIC ---
             if (isExtendingMode && currentVideoData?.asset) {
                 videoResult = await extendVeoVideo(currentVideoData.asset, promptText);
-                setIsExtendingMode(false); // Reset extension mode after call
+                setIsExtendingMode(false); 
             } 
-            // --- STANDARD GENERATION LOGIC ---
             else {
-                // 2. Build Prompt based on Mode or Use Director for Studio
                 if (currentMode === MotionMode.MAPS) {
                     if (!config.mapStart || !config.mapEnd) throw new Error("Defina origem e destino.");
                     finalPrompt = generateMapPrompt(config.mapStart, config.mapEnd, config.mapStyle || 'Satellite', config.mapDataExplosion || false);
@@ -231,43 +281,17 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                      videoResult = await generateVeoVideo(finalPrompt, MotionStyle.KINETIC_TYPO, config.aspectRatio);
                 } 
                 else {
-                    // STUDIO MODE: The "Director Agent" Logic
-                    
-                    // If multiple images are present, we bypass the chat agent refinement for now 
-                    // and use the direct Veo multi-image endpoint to ensure prompt adherence
+                    // STUDIO MODE
                     if (currentImages.length > 0) {
-                        setLoadingStep(`Veo 3.1: Usando ${currentImages.length} referências visuais (Nano Banana Pro)...`);
-                        // Ensure aspect ratio matches Veo ref requirements (16:9)
-                        if (config.aspectRatio !== '16:9') {
-                            setChatHistory(prev => [...prev, {
-                                id: Date.now().toString(),
-                                role: 'system',
-                                content: 'Aviso: O uso de imagens de referência força a proporção para 16:9 e resolução 720p.',
-                                timestamp: Date.now()
-                            }]);
-                        }
-                        
-                        if (currentImages.length === 1) {
-                             // Single image: Use the fast endpoint or standard? The requirement says "up to 3", implying we should use the new feature
-                             // But let's check: if it's just 1, fast preview image-to-video is usually cheaper/faster.
-                             // However, user specifically asked for "Veo 3.1 accepts up to 3". Let's use the new robust function.
-                             videoResult = await generateVeoWithReferences(promptText, currentImages);
-                        } else {
-                             // Multi image (2 or 3)
-                             videoResult = await generateVeoWithReferences(promptText, currentImages);
-                        }
-
+                        setLoadingStep(`Veo 3.1: Usando ${currentImages.length} referências visuais...`);
+                        videoResult = await generateVeoWithReferences(promptText, currentImages);
                     } else {
-                        // Text-to-Video or Video-Analysis Flow
-                        // Construct history for the AI
                         const historyForAI = chatHistory.concat(userMsg).map(m => ({ 
                             role: m.role, 
                             content: m.content, 
                             attachment: m.attachment,
                             attachmentType: m.attachmentType
                         }));
-
-                        // Call the Smart Router
                         finalPrompt = await refineMotionChat(historyForAI, config);
                         setLoadingStep(`Veo 3.1: Gerando cena (${config.aspectRatio})...`);
                         videoResult = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
@@ -277,11 +301,19 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
             
             if (videoResult) {
                 setCurrentVideoData(videoResult);
-                // 4. Add Assistant Response with Video
+                
+                // Add to Timeline
+                setScenes(prev => [...prev, {
+                    id: Date.now().toString(),
+                    videoData: videoResult!,
+                    prompt: finalPrompt || promptText,
+                    duration: 5 // Default assumption
+                }]);
+
                 setChatHistory(prev => [...prev, {
                     id: Date.now().toString(),
                     role: 'assistant',
-                    content: `🎬 Renderização concluída.\nPrompt Técnico: "${finalPrompt.substring(0, 80)}..."`,
+                    content: `🎬 Renderização concluída. Adicionado à Timeline.`,
                     timestamp: Date.now(),
                     videoData: videoResult || undefined
                 }]);
@@ -296,10 +328,11 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 content: `Erro: ${err.message || 'Falha desconhecida.'}`,
                 timestamp: Date.now()
             }]);
-            setIsExtendingMode(false); // Reset on error
+            setIsExtendingMode(false);
         } finally {
             setIsGenerating(false);
             setLoadingStep('');
+            if (forceWithRef) setAttachedImages([]); // Clear after ref usage
         }
     };
 
@@ -322,6 +355,21 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
     return (
         <div className="max-w-[1800px] mx-auto flex flex-col h-[calc(100vh-80px)] fade-in pb-4 px-4 overflow-hidden">
             
+            {/* SEQUENTIAL PLAYER OVERLAY */}
+            {isPlayingSequence && (
+                <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center">
+                    <video 
+                        id="sequence-player"
+                        className="max-h-[80vh] max-w-full shadow-2xl border border-white/10"
+                        controls={false}
+                    />
+                    <div className="mt-4 flex gap-4 text-white font-bold font-display">
+                        <span>Cena {currentSceneIndex + 1} de {scenes.length}</span>
+                        <button onClick={() => setIsPlayingSequence(false)} className="text-red-500">Parar</button>
+                    </div>
+                </div>
+            )}
+
             {/* TOP BAR: MODES */}
             <div className="flex items-center justify-between mb-4 shrink-0 bg-black/40 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
                 <div className="flex items-center gap-2">
@@ -350,7 +398,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                             className="bg-transparent text-white text-[10px] font-bold outline-none cursor-pointer"
                             value={config.aspectRatio}
                             onChange={(e) => setConfig({...config, aspectRatio: e.target.value as any})}
-                            disabled={attachedImages.length > 0} // Locked to 16:9 for refs
+                            disabled={attachedImages.length > 0} 
                         >
                             <option value="16:9">16:9 (Landscape)</option>
                             <option value="9:16">9:16 (Portrait)</option>
@@ -361,10 +409,10 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
 
             <div className="flex flex-col lg:flex-row gap-6 h-full min-h-0">
                 
-                {/* LEFT: PREVIEW & CONTEXT */}
-                <div className="flex-1 flex flex-col gap-4 min-w-0">
+                {/* LEFT: PREVIEW & TIMELINE */}
+                <div className="flex-1 flex flex-col gap-4 min-w-0 h-full">
                     {/* Main Canvas */}
-                    <div className="flex-1 bg-black rounded-3xl border border-white/10 relative overflow-hidden flex items-center justify-center group shadow-2xl">
+                    <div className="flex-1 bg-black rounded-3xl border border-white/10 relative overflow-hidden flex items-center justify-center group shadow-2xl min-h-0">
                         {isGenerating ? (
                             <div className="absolute inset-0 bg-black/90 z-20 flex flex-col items-center justify-center gap-4">
                                 <div className="size-20 rounded-full border-4 border-neon-cyan/20 border-t-neon-cyan animate-spin"></div>
@@ -372,6 +420,25 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                     <h3 className="text-white font-display font-bold animate-pulse">MOTION DIRECTOR</h3>
                                     <p className="text-neon-cyan text-xs font-mono mt-1">{loadingStep}</p>
                                 </div>
+                            </div>
+                        ) : isStoryboardMode && storyboardImages.length > 0 ? (
+                            <div className="grid grid-cols-2 gap-4 p-8 w-full h-full bg-black/80">
+                                {storyboardImages.map((img, i) => (
+                                    <div 
+                                        key={i} 
+                                        onClick={() => setSelectedStoryboardImage(img)}
+                                        className={`relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${selectedStoryboardImage === img ? 'border-neon-cyan scale-105 shadow-[0_0_20px_rgba(6,182,212,0.5)]' : 'border-white/10 hover:border-white/50'}`}
+                                    >
+                                        <img src={img} className="w-full h-full object-cover" alt={`option-${i}`} />
+                                    </div>
+                                ))}
+                                <button 
+                                    onClick={handleConfirmStoryboard}
+                                    disabled={!selectedStoryboardImage}
+                                    className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-neon-cyan text-black font-bold px-8 py-3 rounded-full shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
+                                >
+                                    Confirmar & Animar
+                                </button>
                             </div>
                         ) : currentVideoData ? (
                             <div className="relative w-full h-full flex items-center justify-center bg-[#050511]">
@@ -391,18 +458,15 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                         )}
                         
                         {/* Overlay Controls */}
-                        {currentVideoData && !isGenerating && (
+                        {currentVideoData && !isGenerating && !isStoryboardMode && (
                             <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                {/* EXTEND VIDEO BUTTON */}
                                 <button 
                                     onClick={handleExtensionClick}
                                     className="bg-primary/80 hover:bg-primary backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 text-xs font-bold flex items-center gap-1 shadow-lg"
-                                    title="Estender o vídeo atual"
                                 >
                                     <span className="material-symbols-outlined text-sm">playlist_add</span>
-                                    Estender (+5s)
+                                    Estender
                                 </button>
-                                
                                 <button 
                                     onClick={() => handleDownload(currentVideoData.uri)}
                                     className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-2 rounded-full border border-white/10"
@@ -413,139 +477,46 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                         )}
                     </div>
                     
-                    {/* Context Panel (Inputs based on Mode) */}
-                    <div className="h-48 glass-panel rounded-2xl p-6 overflow-y-auto custom-scrollbar shrink-0">
-                        {currentMode === MotionMode.MAPS && (
-                             <div className="flex flex-col gap-4 animate-in fade-in">
-                                 <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
-                                     <span className="material-symbols-outlined text-neon-cyan">public</span> Configuração de Mapa (Explosivo)
-                                 </h3>
-                                 <div className="grid grid-cols-2 gap-4">
-                                     <div className="space-y-1">
-                                         <label className="text-[10px] text-slate-400 font-bold uppercase">Origem</label>
-                                         <input 
-                                            className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white focus:border-neon-cyan outline-none"
-                                            placeholder="Ex: Paris, France"
-                                            value={config.mapStart || ''}
-                                            onChange={(e) => setConfig({...config, mapStart: e.target.value})}
-                                         />
-                                     </div>
-                                     <div className="space-y-1">
-                                         <label className="text-[10px] text-slate-400 font-bold uppercase">Destino</label>
-                                         <input 
-                                            className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white focus:border-neon-cyan outline-none"
-                                            placeholder="Ex: Berlin, Germany"
-                                            value={config.mapEnd || ''}
-                                            onChange={(e) => setConfig({...config, mapEnd: e.target.value})}
-                                         />
-                                     </div>
-                                 </div>
-                                 <div className="flex items-center justify-between">
-                                     <div className="flex gap-2">
-                                        {['Satellite', 'Vector', '3D Relief'].map(s => (
-                                            <button 
-                                                key={s}
-                                                onClick={() => setConfig({...config, mapStyle: s as any})}
-                                                className={`px-3 py-1 rounded text-xs border ${config.mapStyle === s ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'border-white/10 text-slate-400'}`}
-                                            >
-                                                {s}
-                                            </button>
-                                        ))}
-                                     </div>
-                                     
-                                     {/* EXPLOSION TOGGLE */}
-                                     <label className="flex items-center gap-2 cursor-pointer group">
-                                         <span className="text-[10px] font-bold text-slate-400 group-hover:text-white uppercase transition-colors">Explosão de Dados (VFX)</span>
-                                         <div className="relative">
-                                             <input 
-                                                type="checkbox" 
-                                                className="sr-only peer" 
-                                                checked={config.mapDataExplosion}
-                                                onChange={(e) => setConfig({...config, mapDataExplosion: e.target.checked})}
-                                             />
-                                             <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-neon-cyan"></div>
-                                         </div>
-                                     </label>
-                                 </div>
-                             </div>
-                        )}
-
-                        {currentMode === MotionMode.DATA && (
-                             <div className="flex flex-col gap-4 animate-in fade-in">
-                                <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
-                                     <span className="material-symbols-outlined text-purple-400">analytics</span> Dados do Gráfico
-                                 </h3>
-                                 <div className="flex gap-4">
-                                     <div className="w-1/3 space-y-2">
-                                        <label className="text-[10px] text-slate-400 font-bold uppercase">Tipo</label>
-                                        <select 
-                                            className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white"
-                                            value={config.chartType}
-                                            onChange={(e) => setConfig({...config, chartType: e.target.value as any})}
-                                        >
-                                            <option value="Bar">Barras Animadas</option>
-                                            <option value="Line">Linha Evolutiva</option>
-                                            <option value="Pie">Pizza 3D</option>
-                                            <option value="Floating UI">Interface Flutuante</option>
-                                        </select>
-                                     </div>
-                                     <div className="flex-1 space-y-2">
-                                         <label className="text-[10px] text-slate-400 font-bold uppercase">Dados (Resumo)</label>
-                                         <input 
-                                            className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white focus:border-purple-500 outline-none"
-                                            placeholder="Ex: Crescimento de 20% em 2023..."
-                                            value={config.chartData || ''}
-                                            onChange={(e) => setConfig({...config, chartData: e.target.value})}
-                                         />
-                                     </div>
-                                 </div>
-                             </div>
-                        )}
-                        
-                        {currentMode === MotionMode.TYPOGRAPHY && (
-                             <div className="flex flex-col gap-4 animate-in fade-in">
-                                <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
-                                     <span className="material-symbols-outlined text-pink-400">text_fields</span> Kinetic Typography
-                                 </h3>
-                                 <div className="space-y-2">
-                                     <label className="text-[10px] text-slate-400 font-bold uppercase">Texto para Animar (Max 5 palavras)</label>
-                                     <input 
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-lg font-bold text-white focus:border-pink-500 outline-none"
-                                        placeholder="Ex: O FUTURO É AGORA"
-                                        value={config.typoText || ''}
-                                        onChange={(e) => setConfig({...config, typoText: e.target.value})}
-                                     />
-                                 </div>
-                             </div>
-                        )}
-
-                        {currentMode === MotionMode.STUDIO && (
-                            <div className="flex flex-col gap-2 h-full justify-center text-center opacity-50">
-                                <span className="material-symbols-outlined text-3xl">chat</span>
-                                <p className="text-sm">Envie frames (até 3), vídeo para análise ou instrua o Diretor.</p>
-                            </div>
-                        )}
-                        
-                        {currentMode === MotionMode.TEMPLATES && (
-                             <div className="grid grid-cols-4 gap-4 h-full">
-                                 {TEMPLATES.map((t) => (
-                                     <button 
-                                        key={t.label}
-                                        onClick={() => { handleModeSwitch(t.mode); }}
-                                        className="flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 hover:border-white/20 transition-all group"
-                                     >
-                                         <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">{t.icon}</span>
-                                         <span className="text-xs font-bold">{t.label}</span>
-                                         <span className="text-[9px] text-slate-500">{t.desc}</span>
-                                     </button>
-                                 ))}
-                             </div>
-                        )}
+                    {/* TIMELINE SEQUENCER (NEW) */}
+                    <div className="h-32 bg-black/40 border border-white/10 rounded-2xl p-2 flex flex-col shrink-0">
+                        <div className="flex justify-between items-center px-2 mb-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm text-neon-cyan">view_timeline</span>
+                                Timeline ({scenes.length} cenas)
+                            </span>
+                            <button 
+                                onClick={() => { setIsPlayingSequence(true); setCurrentSceneIndex(0); }}
+                                disabled={scenes.length === 0}
+                                className="flex items-center gap-1 text-[10px] font-bold text-white bg-green-600/20 border border-green-500/50 px-2 py-1 rounded hover:bg-green-600/40 disabled:opacity-30"
+                            >
+                                <span className="material-symbols-outlined text-sm">play_arrow</span>
+                                Reproduzir Sequência
+                            </button>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto custom-scrollbar flex-1 pb-1">
+                            {scenes.map((scene, idx) => (
+                                <div 
+                                    key={scene.id} 
+                                    onClick={() => setCurrentVideoData(scene.videoData)}
+                                    className={`relative aspect-video h-full rounded-lg overflow-hidden border cursor-pointer shrink-0 transition-all group ${currentVideoData?.uri === scene.videoData.uri ? 'border-neon-cyan' : 'border-white/10 hover:border-white/30'}`}
+                                >
+                                    <video src={scene.videoData.uri} className="w-full h-full object-cover" />
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-[8px] text-white p-1 truncate">
+                                        {idx + 1}. {scene.prompt}
+                                    </div>
+                                </div>
+                            ))}
+                            {scenes.length === 0 && (
+                                <div className="flex items-center justify-center w-full text-slate-500 text-xs italic">
+                                    Nenhuma cena criada ainda.
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* RIGHT: CHAT INTERFACE (The "Director") */}
-                <div className="w-full lg:w-[400px] bg-[#020617] border-l border-white/10 flex flex-col shadow-2xl">
+                <div className="w-full lg:w-[400px] bg-[#020617] border-l border-white/10 flex flex-col shadow-2xl h-full">
                     <div className="p-4 border-b border-white/5 bg-black/20 flex flex-col gap-2">
                         <h3 className="text-sm font-bold text-white flex items-center gap-2">
                             <span className="size-2 rounded-full bg-green-500 animate-pulse"></span>
@@ -593,9 +564,6 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                         ) : (
                                             <img src={msg.attachment} className="w-full h-full object-cover" alt="attachment" />
                                         )}
-                                        <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
-                                            {/* Overlay */}
-                                        </div>
                                     </div>
                                 )}
                                 <div 
@@ -608,16 +576,6 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                                     }`}
                                 >
                                     {msg.content}
-                                    {msg.role !== 'system' && (
-                                        <button 
-                                            onClick={() => handleSpeak(msg.id, msg.content)}
-                                            disabled={!!speakingId}
-                                            className={`absolute -right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 ${speakingId === msg.id ? 'text-green-400 animate-pulse' : 'text-slate-500 hover:text-white'}`}
-                                            title="Ler mensagem (TTS)"
-                                        >
-                                            <span className="material-symbols-outlined text-[14px]">volume_up</span>
-                                        </button>
-                                    )}
                                 </div>
                                 {msg.videoData && (
                                     <div className="mt-1 w-32 aspect-video bg-black rounded-lg border border-white/10 overflow-hidden relative group cursor-pointer" onClick={() => setCurrentVideoData(msg.videoData!)}>
@@ -695,51 +653,65 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                             </div>
                         )}
                         
-                        <div className="relative flex items-center gap-2">
-                            <button 
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isExtendingMode || attachedImages.length >= 3}
-                                className={`p-3 rounded-xl border transition-colors ${attachedImages.length > 0 || attachedVideo ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'} ${(isExtendingMode || attachedImages.length >= 3) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Anexar Imagens (até 3) ou Vídeo"
-                            >
-                                <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
-                            </button>
-                            {/* Allow multiple file selection */}
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                className="hidden" 
-                                accept="image/*,video/*" 
-                                multiple
-                                onChange={handleMediaUpload}
-                            />
-
-                            <div className="relative flex-1">
+                        {/* STORYBOARD TOGGLE */}
+                        <div className="flex items-center justify-between">
+                            <div className="relative flex items-center gap-2">
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isExtendingMode || attachedImages.length >= 3}
+                                    className={`p-3 rounded-xl border transition-colors ${attachedImages.length > 0 || attachedVideo ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'} ${(isExtendingMode || attachedImages.length >= 3) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    title="Anexar Imagens (até 3) ou Vídeo"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
+                                </button>
+                                {/* Allow multiple file selection */}
                                 <input 
-                                    className={`w-full bg-[#1e293b] text-white text-sm rounded-xl pl-4 pr-12 py-3 border focus:ring-1 outline-none transition-colors ${isExtendingMode ? 'border-purple-500 focus:border-purple-500 focus:ring-purple-500' : 'border-white/10 focus:border-neon-cyan focus:ring-neon-cyan'}`}
-                                    placeholder={isExtendingMode ? "O que acontece a seguir?" : (attachedImages.length > 0 ? "Prompt para essas referências..." : (currentMode === MotionMode.MAPS ? "Gerar mapa..." : "Instruir Diretor..."))}
-                                    value={inputMessage}
-                                    onChange={(e) => setInputMessage(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleSendMessage()}
-                                    disabled={isGenerating}
-                                    autoFocus={isExtendingMode}
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    className="hidden" 
+                                    accept="image/*,video/*" 
+                                    multiple
+                                    onChange={handleMediaUpload}
                                 />
-                                <button 
-                                    onClick={() => handleSpeak('input', inputMessage)}
-                                    disabled={!inputMessage.trim() || !!speakingId}
-                                    className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-white"
-                                    title="Ouvir texto (TTS)"
-                                >
-                                    <span className="material-symbols-outlined text-[16px]">volume_up</span>
-                                </button>
-                                <button 
-                                    onClick={handleSendMessage}
-                                    disabled={isGenerating}
-                                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors disabled:opacity-50 ${isExtendingMode ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500 hover:text-white' : 'bg-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan hover:text-black'}`}
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">send</span>
-                                </button>
                             </div>
+                            
+                            {/* NEW: Storyboard Button */}
+                            <button
+                                onClick={handleGenerateStoryboard}
+                                disabled={isGenerating || isExtendingMode || !inputMessage.trim()}
+                                className="text-[10px] font-bold text-yellow-300 border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 rounded-lg hover:bg-yellow-500/20 disabled:opacity-30 transition-all flex items-center gap-1"
+                                title="Gerar 4 opções antes de animar"
+                            >
+                                <span className="material-symbols-outlined text-sm">dashboard</span>
+                                Storyboard
+                            </button>
+                        </div>
+
+                        <div className="relative flex-1">
+                            <input 
+                                className={`w-full bg-[#1e293b] text-white text-sm rounded-xl pl-4 pr-12 py-3 border focus:ring-1 outline-none transition-colors ${isExtendingMode ? 'border-purple-500 focus:border-purple-500 focus:ring-purple-500' : 'border-white/10 focus:border-neon-cyan focus:ring-neon-cyan'}`}
+                                placeholder={isExtendingMode ? "O que acontece a seguir?" : (attachedImages.length > 0 ? "Prompt para essas referências..." : (currentMode === MotionMode.MAPS ? "Gerar mapa..." : "Instruir Diretor..."))}
+                                value={inputMessage}
+                                onChange={(e) => setInputMessage(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleSendMessage()}
+                                disabled={isGenerating}
+                                autoFocus={isExtendingMode}
+                            />
+                            <button 
+                                onClick={() => handleSpeak('input', inputMessage)}
+                                disabled={!inputMessage.trim() || !!speakingId}
+                                className="absolute right-10 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-white"
+                                title="Ouvir texto (TTS)"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">volume_up</span>
+                            </button>
+                            <button 
+                                onClick={() => handleSendMessage()}
+                                disabled={isGenerating}
+                                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors disabled:opacity-50 ${isExtendingMode ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500 hover:text-white' : 'bg-neon-cyan/20 text-neon-cyan hover:bg-neon-cyan hover:text-black'}`}
+                            >
+                                <span className="material-symbols-outlined text-[18px]">send</span>
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface DashboardViewProps {
@@ -6,117 +7,119 @@ interface DashboardViewProps {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ onCreateClick }) => {
   return (
-    <div className="max-w-7xl mx-auto flex flex-col gap-8 fade-in">
-      {/* Page Heading & Actions */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-slate-900 dark:text-white text-3xl md:text-4xl font-bold font-display tracking-tight">Meus Carrosséis</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-base">Gerencie, edite e publique suas criações de conteúdo.</p>
-        </div>
-        <button 
-            onClick={onCreateClick}
-            className="flex shrink-0 items-center justify-center gap-2 rounded-xl h-11 px-5 bg-surface-dark hover:bg-slate-700 dark:bg-surface-dark dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm font-bold transition-all shadow-sm"
-        >
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          <span>Criar Novo</span>
-        </button>
-      </div>
+    <div className="flex flex-col h-full overflow-hidden relative z-10">
+        
+        {/* Header Section */}
+        <header className="flex justify-between items-center px-8 py-6 relative z-10 shrink-0">
+            <h2 className="text-3xl font-medium tracking-tight text-white drop-shadow-md font-display">Meus Carrosséis</h2>
+            {/* Action Button */}
+            <button 
+                onClick={onCreateClick}
+                className="px-6 py-2.5 rounded-xl bg-white/10 border border-white/30 text-sm font-semibold text-white hover:bg-white/20 hover:border-cyan-400/50 hover:shadow-[0_0_15px_rgba(76,201,240,0.4)] transition-all flex items-center gap-2 backdrop-blur-md"
+            >
+                <i className="fa-solid fa-plus text-xs"></i>
+                Criar Novo
+            </button>
+        </header>
 
-      {/* Filters & Search */}
-      <div className="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-center bg-white dark:bg-surface-dark p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        {/* Chips */}
-        <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 w-full xl:w-auto no-scrollbar">
-          <button className="flex h-9 shrink-0 items-center justify-center px-4 rounded-lg bg-primary text-white text-sm font-medium transition-colors shadow-lg shadow-primary/20">
-            Todos
-          </button>
-          <button className="flex h-9 shrink-0 items-center justify-center px-4 rounded-lg bg-slate-100 dark:bg-[#161a2c] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium transition-colors border border-transparent dark:border-slate-700">
-            Publicados
-          </button>
-          <button className="flex h-9 shrink-0 items-center justify-center px-4 rounded-lg bg-slate-100 dark:bg-[#161a2c] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium transition-colors border border-transparent dark:border-slate-700">
-            Rascunhos
-          </button>
-        </div>
-        {/* Inputs */}
-        <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
-          <div className="relative w-full sm:w-64">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
-            <input className="w-full h-10 pl-10 pr-4 rounded-lg bg-slate-50 dark:bg-[#161a2c] border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-slate-500 dark:placeholder:text-slate-500" placeholder="Filtrar por nome" type="text"/>
-          </div>
-        </div>
-      </div>
-
-      {/* Grid Content */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {/* Card 1 */}
-        <div className="group flex flex-col bg-white dark:bg-surface-dark rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-primary/50 dark:hover:border-primary/50 transition-all hover:shadow-xl hover:shadow-primary/5 cursor-pointer">
-          <div className="relative aspect-[4/3] bg-slate-200 dark:bg-slate-800 overflow-hidden">
-            <div className="absolute inset-0 bg-cover bg-center transform group-hover:scale-105 transition-transform duration-500" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxNWm5Ng1OtfI_v1_QzJZFzNV8L9shkC5LIJWDhCyPn8FWhrxg3AybBcG-XWdnzwlUIxZBtadOOmCLtLCPqs4dYrqjuNbOouSThvqYWWpI0aQvqpoz_Oh1nVzf7s8syHC-poT1-K_dNb6U35NnrXSJd-xCeSJ3ZfjzEyKkmuX5bNN9icM6uInJd1ACzy4bLx_1hWC4prKaPr_CsEnAGPbzxaI3u4aDBF2_VbjEP1XFziKaXgUy0T4toWfdTOqHZsOTsa6Eq_6X8FWe")'}}></div>
-            <div className="absolute top-3 right-3">
-              <span className="px-2 py-1 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-semibold border border-white/10">Slide 1/8</span>
+        {/* Toolbar: Tabs and Search */}
+        <div className="px-8 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10 shrink-0">
+            {/* Tabs */}
+            <div className="flex p-1 rounded-xl bg-black/20 backdrop-blur-sm border border-white/5">
+                <button className="px-6 py-1.5 rounded-lg text-sm font-medium text-white bg-white/10 border border-white/10 shadow-sm relative overflow-hidden group">
+                    <span className="relative z-10">Todos</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-600/40 to-purple-600/40 opacity-100 group-hover:opacity-80 transition-opacity"></div>
+                </button>
+                <button className="px-6 py-1.5 rounded-lg text-sm font-medium text-white/60 hover:text-white transition-colors">
+                    Publicados
+                </button>
+                <button className="px-6 py-1.5 rounded-lg text-sm font-medium text-white/60 hover:text-white transition-colors">
+                    Rascunhos
+                </button>
             </div>
-          </div>
-          <div className="flex flex-col p-4 gap-3">
-            <div className="flex justify-between items-start">
-              <div className="overflow-hidden">
-                <h3 className="text-slate-900 dark:text-white font-bold font-display text-lg leading-tight truncate">Guia LinkedIn 2024</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">Atualizado há 2 horas</p>
-              </div>
-              <button className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-700/50 transition-colors">
-                <span className="material-symbols-outlined text-[20px]">more_vert</span>
-              </button>
+            {/* Search Bar */}
+            <div className="relative group w-full md:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i className="fa-solid fa-magnifying-glass text-white/50 group-focus-within:text-white/80 transition-colors text-xs"></i>
+                </div>
+                <input 
+                    className="block w-full pl-10 pr-3 py-2 border border-white/10 rounded-xl leading-5 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:bg-white/10 focus:border-white/20 focus:ring-1 focus:ring-white/20 sm:text-sm transition-all" 
+                    placeholder="Filtrar por nome" 
+                    type="text"
+                />
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-xs font-medium border border-green-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
-                Publicado
-              </span>
-              <div className="flex -space-x-2">
-                <div className="size-6 rounded-full bg-blue-600 border-2 border-white dark:border-[#1e2130] flex items-center justify-center text-[10px] text-white font-bold">In</div>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Card 2 */}
-        <div className="group flex flex-col bg-white dark:bg-surface-dark rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-primary/50 dark:hover:border-primary/50 transition-all hover:shadow-xl hover:shadow-primary/5 cursor-pointer">
-          <div className="relative aspect-[4/3] bg-slate-200 dark:bg-slate-800 overflow-hidden">
-            <div className="absolute inset-0 bg-cover bg-center transform group-hover:scale-105 transition-transform duration-500" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCX1yWpxA8v00Uyssgs_b6QWcZcUisFKdkp9h54xufoJ6p0I5Mz-6mU4fgvb3wSBMq1KU2GWlxThZv4ndfVwNd0XytAmTOIpJkeax2YKlvUzxFqnfhpuBVIHDMSCBkCxeSap_Eq8y6yp7Hkxwh679wem3ecZ8LafVpgvycfEOkL54gZGbjqSCSspISceFEMbZPaWE1J6-qF8CD90u1VXZbk0NNgX_WglQYAbRNimUZO27KgORWvHQIysqSQQEEvDJxx1D92hySj_HVz")'}}></div>
-            <div className="absolute top-3 right-3">
-              <span className="px-2 py-1 rounded-md bg-black/60 backdrop-blur-sm text-white text-xs font-semibold border border-white/10">Slide 1/5</span>
-            </div>
-          </div>
-          <div className="flex flex-col p-4 gap-3">
-            <div className="flex justify-between items-start">
-              <div className="overflow-hidden">
-                <h3 className="text-slate-900 dark:text-white font-bold font-display text-lg leading-tight truncate">Dicas de Produtividade</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">Criado ontem</p>
-              </div>
-              <button className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-700/50 transition-colors">
-                <span className="material-symbols-outlined text-[20px]">more_vert</span>
-              </button>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="inline-flex items-center px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs font-medium border border-yellow-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1.5"></span>
-                Rascunho
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* Cards Grid */}
+        <div className="flex-1 px-8 pt-2 overflow-y-auto custom-scrollbar relative z-10 pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                {/* Card 1: LinkedIn Guide */}
+                <article className="glass-panel glass-card rounded-3xl p-6 relative overflow-hidden group h-64 flex flex-col justify-between cursor-pointer">
+                    {/* Subtle gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-600/40 via-purple-600/30 to-transparent opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                    {/* Top Row */}
+                    <div className="flex justify-between items-start relative z-10">
+                        <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
+                            <i className="fa-brands fa-linkedin-in text-2xl text-white"></i>
+                        </div>
+                        <button className="text-white/70 hover:text-white">
+                            <i className="fa-solid fa-ellipsis-vertical text-lg"></i>
+                        </button>
+                    </div>
+                    {/* Bottom Row */}
+                    <div className="relative z-10 mt-auto">
+                        <h3 className="text-xl font-bold tracking-wide text-white mb-1 leading-snug">Guia LinkedIn<br/>2024</h3>
+                        <div className="flex justify-between items-end">
+                            <span className="text-xs text-white/60 font-light">Guilets ago</span>
+                            <div className="flex gap-1">
+                                <span className="w-1 h-1 rounded-full bg-white/50"></span>
+                                <span className="w-1 h-1 rounded-full bg-white/50"></span>
+                                <span className="w-1 h-1 rounded-full bg-white/50"></span>
+                            </div>
+                        </div>
+                    </div>
+                </article>
 
-        {/* Create New Placeholder */}
-        <div 
-            onClick={onCreateClick}
-            className="group flex flex-col justify-center items-center bg-white dark:bg-surface-dark rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-primary dark:hover:border-primary transition-all cursor-pointer min-h-[300px]"
-        >
-          <div className="flex flex-col items-center gap-3 text-slate-400 group-hover:text-primary transition-colors">
-            <div className="size-16 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-              <span className="material-symbols-outlined text-[32px]">add_circle</span>
+                {/* Card 2: Productivity Tips */}
+                <article className="glass-panel glass-card rounded-3xl p-6 relative overflow-hidden group h-64 flex flex-col justify-between cursor-pointer">
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-indigo-600/30 to-transparent opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="flex justify-between items-start relative z-10">
+                        <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
+                            <i className="fa-regular fa-lightbulb text-2xl text-white"></i>
+                        </div>
+                        <button className="text-white/70 hover:text-white">
+                            <i className="fa-solid fa-ellipsis-vertical text-lg"></i>
+                        </button>
+                    </div>
+                    <div className="relative z-10 mt-auto">
+                        <h3 className="text-xl font-bold tracking-wide text-white mb-1 leading-snug">Dicas de<br/>Produtividade</h3>
+                        <div className="flex justify-between items-end">
+                            <span className="text-xs text-white/60 font-light">Gullars ago</span>
+                            <div className="flex gap-1">
+                                <span className="w-1 h-1 rounded-full bg-white/50"></span>
+                                <span className="w-1 h-1 rounded-full bg-white/50"></span>
+                                <span className="w-1 h-1 rounded-full bg-white/50"></span>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                {/* Card 3: Create from Prompt (Action Card) */}
+                <article 
+                    onClick={onCreateClick}
+                    className="glass-panel glass-card rounded-3xl p-6 relative overflow-hidden group h-64 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/10 transition-colors" 
+                    style={{background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)'}}
+                >
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                        <i className="fa-solid fa-plus text-2xl text-white"></i>
+                    </div>
+                    <h3 className="text-lg font-medium text-white/90">Criar a partir<br/>de Prompt</h3>
+                </article>
+
             </div>
-            <span className="font-bold text-lg font-display">Criar a partir de Prompt</span>
-          </div>
         </div>
-      </div>
     </div>
   );
 };

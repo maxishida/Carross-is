@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
-import TopBar from './components/TopBar';
 import DashboardView from './components/DashboardView';
 import GeneratorView from './components/GeneratorView';
 import CreativeGeneratorView from './components/CreativeGeneratorView';
@@ -39,22 +38,27 @@ function App() {
           case 'create':
               return (
                   <ErrorBoundary>
-                    <GeneratorView 
-                        onBack={() => setCurrentView('dashboard')} 
-                        // In a real app, you'd pass addToast here via Context or Props
-                    />
+                    <div className="h-full overflow-y-auto custom-scrollbar p-6">
+                        <GeneratorView 
+                            onBack={() => setCurrentView('dashboard')} 
+                        />
+                    </div>
                   </ErrorBoundary>
               );
           case 'creative':
               return (
                   <ErrorBoundary>
-                    <CreativeGeneratorView onBack={() => setCurrentView('dashboard')} />
+                    <div className="h-full overflow-y-auto custom-scrollbar p-6">
+                        <CreativeGeneratorView onBack={() => setCurrentView('dashboard')} />
+                    </div>
                   </ErrorBoundary>
               );
           case 'motion':
               return (
                   <ErrorBoundary>
-                    <MotionGeneratorView onBack={() => setCurrentView('dashboard')} />
+                    <div className="h-full overflow-y-auto custom-scrollbar p-6">
+                        <MotionGeneratorView onBack={() => setCurrentView('dashboard')} />
+                    </div>
                   </ErrorBoundary>
               );
           case 'dashboard':
@@ -68,33 +72,45 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background-dark text-slate-100 relative selection:bg-primary/30 selection:text-white">
+    <div className="h-screen w-full flex items-center justify-center p-2 md:p-8 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="mesh-background"></div>
+      <div className="glow-spot w-96 h-96 bg-accent-purple/30 top-0 left-0"></div>
+      <div className="glow-spot w-[500px] h-[500px] bg-accent-cyan/20 bottom-0 right-0"></div>
+
       {/* Global Toast Container */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      {/* Ambient Background Glows */}
-      <div className="absolute top-[10%] left-[5%] w-[40vw] h-[40vw] bg-primary/10 rounded-full blur-[150px] pointer-events-none z-0 mix-blend-screen"></div>
-      <div className="absolute bottom-[0%] right-[0%] w-[40vw] h-[40vw] bg-accent/10 rounded-full blur-[150px] pointer-events-none z-0 mix-blend-screen"></div>
+      {/* Main Glass Dashboard Container */}
+      <main className="glass-panel w-full max-w-[1400px] h-[95vh] md:h-[90vh] rounded-[30px] flex overflow-hidden relative shadow-2xl">
+          
+          {/* Sidebar */}
+          <Sidebar 
+            onNavigate={setCurrentView} 
+            currentView={currentView}
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            credits={credits}
+          />
 
-      {/* SideNavBar with Mobile Drawer Logic */}
-      <Sidebar 
-        onNavigate={setCurrentView} 
-        currentView={currentView}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        credits={credits}
-      />
+          {/* Main Content Area */}
+          <section className="flex-1 flex flex-col relative overflow-hidden bg-black/10">
+            {/* Gradient mesh specifically for the content area */}
+            <div className="absolute inset-0 pointer-events-none opacity-30 z-0" style={{background: 'linear-gradient(120deg, transparent 40%, rgba(76, 201, 240, 0.2) 60%, rgba(114, 9, 183, 0.2) 80%)'}}></div>
+            
+            {/* Render Content */}
+            <div className="relative z-10 w-full h-full flex flex-col">
+                {/* Mobile Menu Trigger (Only visible on small screens) */}
+                <div className="md:hidden p-4 flex items-center gap-2">
+                    <button onClick={() => setIsSidebarOpen(true)} className="text-white p-2 glass-card rounded-lg">
+                        <i className="fa-solid fa-bars"></i>
+                    </button>
+                    <span className="font-bold">Painel</span>
+                </div>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-full relative z-10 overflow-hidden backdrop-blur-[2px]">
-        <TopBar onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-
-        {/* Scrollable Page Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 grid-bg">
-            <ErrorBoundary>
                 {renderContent()}
-            </ErrorBoundary>
-        </div>
+            </div>
+          </section>
       </main>
     </div>
   );
