@@ -124,6 +124,8 @@ export interface MotionConfig {
   // Intelligence Features (NEW)
   useThinking?: boolean;
   useGrounding?: 'none' | 'googleSearch' | 'googleMaps';
+  // Reference Images (NEW)
+  referenceImages?: string[]; // Array of Base64 strings
 }
 
 // New Interface to store Video Asset for Extension

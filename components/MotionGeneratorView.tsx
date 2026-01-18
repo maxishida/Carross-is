@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MotionConfig, MotionMode, MotionStyle, MotionVisualTheme, MotionAspectRatio, MotionChatMessage, GeneratedVeoData } from '../types';
-import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent, extendVeoVideo } from '../services/geminiService';
+import { generateVeoVideo, enhanceMotionPrompt, generateMapPrompt, generateDataPrompt, refineMotionChat, generateTypographyPrompt, generateVeoFromImage, generateAndPlaySpeech, analyzeVisualContent, extendVeoVideo, generateVeoWithReferences } from '../services/geminiService';
 
 interface MotionGeneratorViewProps {
     onBack: () => void;
@@ -47,7 +47,12 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         }
     ]);
     const [inputMessage, setInputMessage] = useState('');
-    const [attachedMedia, setAttachedMedia] = useState<string | null>(null); // Base64
+    
+    // NEW: Supports up to 3 images
+    const [attachedImages, setAttachedImages] = useState<string[]>([]);
+    
+    // Legacy support for video upload analysis or fallback (keeps single string for video)
+    const [attachedVideo, setAttachedVideo] = useState<string | null>(null);
     const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
     
     const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -96,21 +101,53 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
     };
 
     const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            const file = files[0];
             const isVideo = file.type.startsWith('video/');
-            setMediaType(isVideo ? 'video' : 'image');
             
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setAttachedMedia(reader.result as string);
-                // Auto-analyze instruction if video
-                if (isVideo) {
+            if (isVideo) {
+                // Video analysis mode (single file)
+                setMediaType('video');
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setAttachedVideo(reader.result as string);
                     setInputMessage(prev => prev ? prev : "Analise este vídeo e extraia os principais movimentos para replicar no Veo.");
-                }
-            };
-            reader.readAsDataURL(file);
+                    // Clear images if video is set
+                    setAttachedImages([]);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                // Image mode (up to 3)
+                setMediaType('image');
+                setAttachedVideo(null); // Clear video
+                
+                // Read all images up to 3 total
+                const pendingImages: string[] = [];
+                let processedCount = 0;
+                const maxToAdd = 3 - attachedImages.length;
+                const filesToProcess = Array.from(files).slice(0, maxToAdd);
+
+                filesToProcess.forEach(f => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        pendingImages.push(reader.result as string);
+                        processedCount++;
+                        if (processedCount === filesToProcess.length) {
+                            setAttachedImages(prev => [...prev, ...pendingImages]);
+                        }
+                    };
+                    reader.readAsDataURL(f);
+                });
+            }
         }
+        // Reset input
+        if(fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const removeImage = (index: number) => {
+        setAttachedImages(prev => prev.filter((_, i) => i !== index));
+        if (attachedImages.length <= 1) setMediaType(null);
     };
 
     const handleExtensionClick = () => {
@@ -130,15 +167,15 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
     };
 
     const handleSendMessage = async () => {
-        if (!inputMessage.trim() && !attachedMedia && currentMode === MotionMode.STUDIO && !isExtendingMode) return;
+        if (!inputMessage.trim() && attachedImages.length === 0 && !attachedVideo && currentMode === MotionMode.STUDIO && !isExtendingMode) return;
 
         // 1. Add User Message
         const userMsg: MotionChatMessage = {
             id: Date.now().toString(),
             role: 'user',
-            content: inputMessage || (attachedMedia ? 'Analisar mídia anexada...' : `Gerar vídeo no modo ${currentMode}`),
+            content: inputMessage || (attachedImages.length > 0 ? `Gerar vídeo com ${attachedImages.length} referências` : `Gerar vídeo no modo ${currentMode}`),
             timestamp: Date.now(),
-            attachment: attachedMedia || undefined,
+            attachment: attachedVideo || (attachedImages.length > 0 ? attachedImages[0] : undefined), // Just show first image as preview in chat
             attachmentType: mediaType || undefined
         };
         setChatHistory(prev => [...prev, userMsg]);
@@ -146,9 +183,11 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
         // Reset Inputs
         const promptText = inputMessage;
         setInputMessage('');
-        const currentAttachment = attachedMedia;
-        const currentMediaType = mediaType;
-        setAttachedMedia(null);
+        const currentImages = [...attachedImages];
+        const currentVideo = attachedVideo;
+        
+        setAttachedImages([]);
+        setAttachedVideo(null);
         setMediaType(null);
         
         setIsGenerating(true);
@@ -194,25 +233,44 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                 else {
                     // STUDIO MODE: The "Director Agent" Logic
                     
-                    // Construct history for the AI
-                    const historyForAI = chatHistory.concat(userMsg).map(m => ({ 
-                        role: m.role, 
-                        content: m.content, 
-                        attachment: m.attachment,
-                        attachmentType: m.attachmentType
-                    }));
+                    // If multiple images are present, we bypass the chat agent refinement for now 
+                    // and use the direct Veo multi-image endpoint to ensure prompt adherence
+                    if (currentImages.length > 0) {
+                        setLoadingStep(`Veo 3.1: Usando ${currentImages.length} referências visuais (Nano Banana Pro)...`);
+                        // Ensure aspect ratio matches Veo ref requirements (16:9)
+                        if (config.aspectRatio !== '16:9') {
+                            setChatHistory(prev => [...prev, {
+                                id: Date.now().toString(),
+                                role: 'system',
+                                content: 'Aviso: O uso de imagens de referência força a proporção para 16:9 e resolução 720p.',
+                                timestamp: Date.now()
+                            }]);
+                        }
+                        
+                        if (currentImages.length === 1) {
+                             // Single image: Use the fast endpoint or standard? The requirement says "up to 3", implying we should use the new feature
+                             // But let's check: if it's just 1, fast preview image-to-video is usually cheaper/faster.
+                             // However, user specifically asked for "Veo 3.1 accepts up to 3". Let's use the new robust function.
+                             videoResult = await generateVeoWithReferences(promptText, currentImages);
+                        } else {
+                             // Multi image (2 or 3)
+                             videoResult = await generateVeoWithReferences(promptText, currentImages);
+                        }
 
-                    // Call the Smart Router
-                    finalPrompt = await refineMotionChat(historyForAI, config);
-                    
-                    if (currentAttachment && currentMediaType === 'image') {
-                         // Image-to-Video
-                         setLoadingStep('Veo 3.1: Animate Image (Fast Preview)...');
-                         videoResult = await generateVeoFromImage(currentAttachment, finalPrompt, config.aspectRatio);
                     } else {
-                         // Text-to-Video
-                         setLoadingStep(`Veo 3.1: Gerando cena (${config.aspectRatio})...`);
-                         videoResult = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
+                        // Text-to-Video or Video-Analysis Flow
+                        // Construct history for the AI
+                        const historyForAI = chatHistory.concat(userMsg).map(m => ({ 
+                            role: m.role, 
+                            content: m.content, 
+                            attachment: m.attachment,
+                            attachmentType: m.attachmentType
+                        }));
+
+                        // Call the Smart Router
+                        finalPrompt = await refineMotionChat(historyForAI, config);
+                        setLoadingStep(`Veo 3.1: Gerando cena (${config.aspectRatio})...`);
+                        videoResult = await generateVeoVideo(finalPrompt, config.style, config.aspectRatio);
                     }
                 }
             }
@@ -292,6 +350,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                             className="bg-transparent text-white text-[10px] font-bold outline-none cursor-pointer"
                             value={config.aspectRatio}
                             onChange={(e) => setConfig({...config, aspectRatio: e.target.value as any})}
+                            disabled={attachedImages.length > 0} // Locked to 16:9 for refs
                         >
                             <option value="16:9">16:9 (Landscape)</option>
                             <option value="9:16">9:16 (Portrait)</option>
@@ -463,7 +522,7 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                         {currentMode === MotionMode.STUDIO && (
                             <div className="flex flex-col gap-2 h-full justify-center text-center opacity-50">
                                 <span className="material-symbols-outlined text-3xl">chat</span>
-                                <p className="text-sm">Envie um frame, vídeo para análise ou instrua o Diretor.</p>
+                                <p className="text-sm">Envie frames (até 3), vídeo para análise ou instrua o Diretor.</p>
                             </div>
                         )}
                         
@@ -597,41 +656,68 @@ const MotionGeneratorView: React.FC<MotionGeneratorViewProps> = ({ onBack }) => 
                              </div>
                         )}
 
-                        {attachedMedia && (
+                        {/* DISPLAY VIDEO ATTACHMENT */}
+                        {attachedVideo && (
                             <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/10">
-                                {mediaType === 'video' ? (
-                                    <span className="material-symbols-outlined text-slate-400">videocam</span>
-                                ) : (
-                                    <img src={attachedMedia} className="size-8 rounded object-cover" alt="ref" />
-                                )}
+                                <span className="material-symbols-outlined text-slate-400">videocam</span>
                                 <span className="text-[10px] text-slate-400 flex-1 truncate">
-                                    {mediaType === 'video' ? 'Vídeo para Análise' : 'Frame de Referência'}
+                                    Vídeo para Análise
                                 </span>
-                                <button onClick={() => { setAttachedMedia(null); setMediaType(null); }} className="text-slate-500 hover:text-white"><span className="material-symbols-outlined text-sm">close</span></button>
+                                <button onClick={() => { setAttachedVideo(null); setMediaType(null); }} className="text-slate-500 hover:text-white"><span className="material-symbols-outlined text-sm">close</span></button>
+                            </div>
+                        )}
+
+                        {/* DISPLAY IMAGE GRID (UP TO 3) */}
+                        {attachedImages.length > 0 && (
+                            <div className="grid grid-cols-3 gap-2">
+                                {attachedImages.map((img, idx) => (
+                                    <div key={idx} className="relative aspect-square bg-white/5 rounded-lg border border-white/10 overflow-hidden group">
+                                        <img src={img} className="w-full h-full object-cover" alt={`ref-${idx}`} />
+                                        <button 
+                                            onClick={() => removeImage(idx)}
+                                            className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                                        >
+                                            <span className="material-symbols-outlined text-[12px]">close</span>
+                                        </button>
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-[8px] text-center text-white py-0.5">
+                                            Ref {idx + 1}
+                                        </div>
+                                    </div>
+                                ))}
+                                {attachedImages.length < 3 && (
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="aspect-square bg-white/5 rounded-lg border border-dashed border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-slate-400">add</span>
+                                    </button>
+                                )}
                             </div>
                         )}
                         
                         <div className="relative flex items-center gap-2">
                             <button 
                                 onClick={() => fileInputRef.current?.click()}
-                                disabled={isExtendingMode}
-                                className={`p-3 rounded-xl border transition-colors ${attachedMedia ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'} ${isExtendingMode ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Anexar Imagem ou Vídeo"
+                                disabled={isExtendingMode || attachedImages.length >= 3}
+                                className={`p-3 rounded-xl border transition-colors ${attachedImages.length > 0 || attachedVideo ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'} ${(isExtendingMode || attachedImages.length >= 3) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title="Anexar Imagens (até 3) ou Vídeo"
                             >
                                 <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
                             </button>
+                            {/* Allow multiple file selection */}
                             <input 
                                 type="file" 
                                 ref={fileInputRef} 
                                 className="hidden" 
                                 accept="image/*,video/*" 
+                                multiple
                                 onChange={handleMediaUpload}
                             />
 
                             <div className="relative flex-1">
                                 <input 
                                     className={`w-full bg-[#1e293b] text-white text-sm rounded-xl pl-4 pr-12 py-3 border focus:ring-1 outline-none transition-colors ${isExtendingMode ? 'border-purple-500 focus:border-purple-500 focus:ring-purple-500' : 'border-white/10 focus:border-neon-cyan focus:ring-neon-cyan'}`}
-                                    placeholder={isExtendingMode ? "O que acontece a seguir?" : (currentMode === MotionMode.MAPS ? "Gerar mapa..." : "Instruir Diretor...")}
+                                    placeholder={isExtendingMode ? "O que acontece a seguir?" : (attachedImages.length > 0 ? "Prompt para essas referências..." : (currentMode === MotionMode.MAPS ? "Gerar mapa..." : "Instruir Diretor..."))}
                                     value={inputMessage}
                                     onChange={(e) => setInputMessage(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleSendMessage()}
