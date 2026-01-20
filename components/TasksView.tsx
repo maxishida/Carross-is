@@ -121,9 +121,9 @@ const TasksView: React.FC = () => {
             
             {/* --- MODAL DE CRIAÇÃO/EDIÇÃO --- */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-[#1e1b2e] border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
-                        <div className="flex justify-between items-center p-6 border-b border-white/10 bg-[#151221]">
+                        <div className="flex justify-between items-center p-6 border-b border-white/10 bg-[#151221] shrink-0">
                             <h3 className="text-xl font-bold text-white">{editingTask ? 'Editar Tarefa' : 'Nova Tarefa'}</h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
@@ -189,7 +189,7 @@ const TasksView: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-white/10 bg-[#151221] flex justify-end gap-3">
+                        <div className="p-6 border-t border-white/10 bg-[#151221] flex justify-end gap-3 shrink-0">
                             {editingTask && (
                                 <button onClick={() => { handleDelete(editingTask.id); setIsModalOpen(false); }} className="text-red-400 hover:text-red-300 text-xs font-bold px-4 py-2 mr-auto">
                                     <i className="fa-solid fa-trash mr-2"></i> Excluir

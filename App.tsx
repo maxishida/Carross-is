@@ -133,8 +133,8 @@ const AppContent = () => {
               </div>
           </div>
 
-          {/* View Content */}
-          <div className="flex-1 overflow-hidden relative z-10">
+          {/* View Content - Removed z-10 to fix Stacking Context for Modals */}
+          <div className="flex-1 overflow-hidden relative">
             {renderContent()}
           </div>
       </main>

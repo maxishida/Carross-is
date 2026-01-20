@@ -1,39 +1,48 @@
 
 # Agentes, Tools e Prompts
 
-O sistema utiliza uma abordagem "Multi-Agente" orquestrada pelo frontend.
+O sistema utiliza uma abordagem "Multi-Agente" onde cada módulo possui um especialista IA dedicado.
 
-## 1. Agente "Motion Director AI"
-*   **Arquivo:** `services/geminiService.ts` (Função `refineMotionChat`)
-*   **Modelo:** Dinâmico (Router). Usa `gemini-3-pro` se Thinking ativado, `gemini-2.5-flash` se Maps ativado, etc.
-*   **Persona:** Especialista em Motion Design, estilo "Hera Evolution", focado em prompts técnicos para vídeo (Veo).
-*   **System Instruction:** 
-    > "ATUE COMO: 'Motion Director AI'... MISSÃO: Criar prompts de vídeo cinematográficos... ESTILO: 'Hera Evolution'..."
+## 1. Agente "Agency Director" (Dashboard)
+*   **Arquivo:** `services/geminiService.ts` (Função `parseAgencyCommand`)
+*   **Modelo:** `gemini-3-flash-preview` (Alta velocidade, baixa latência).
+*   **Responsabilidade:** Atuar como um Assistente Executivo que gerencia o estado da aplicação.
+*   **Contexto (RAG Leve):** Recebe no prompt o estado atual das Tarefas, Eventos do Calendário e Leads do CRM para tomar decisões informadas.
+*   **Output Estruturado:** Retorna um JSON `DirectorAction` que o frontend executa.
 
-## 2. Ferramentas (Tools) Configuradas
+### Schema de Ação (DirectorAction)
+```typescript
+{
+  action: 'create_task' | 'create_event' | 'create_project' | 'audit_schedule',
+  data: {
+    title: string,
+    priority?: 'high' | 'medium',
+    deadline?: string (ISO),
+    // ... outros parâmetros
+  },
+  reply: string // Resposta em linguagem natural para o usuário
+}
+```
 
-### Google Maps Grounding
-*   **Trigger:** `config.useGrounding === 'googleMaps'`
-*   **Código:** `tools: [{ googleMaps: {} }]`
-*   **Uso:** Quando o usuário pede um vídeo de viagem ou localização. A IA consulta o Maps para obter coordenadas e estética real do local antes de gerar o prompt do vídeo.
+## 2. Agente "Motion Director" (Vídeo)
+*   **Modelo:** Dinâmico. Usa `gemini-3-pro` se o "Thinking Mode" estiver ativo para planejamento de cenas complexas.
+*   **Persona:** Especialista em Motion Design, estilo "Hera Evolution".
+*   **Tools:**
+    *   `googleMaps`: Para obter coordenadas e visual de locais reais.
+    *   `googleSearch`: Para buscar tendências e notícias.
 
-### Google Search Grounding
-*   **Trigger:** `config.useGrounding === 'googleSearch'`
-*   **Código:** `tools: [{ googleSearch: {} }]`
-*   **Uso:** Para obter informações factuais recentes (ex: "Quem ganhou o jogo ontem?") e incorporar isso no conteúdo do carrossel ou vídeo.
+## 3. Gemini Live (Áudio Real-Time)
+*   **Modelo:** `gemini-2.5-flash-native-audio-preview-12-2025`
+*   **Uso:** Habilita o microfone no Dashboard e no Co-piloto.
+*   **Fluxo:** O áudio é streamado via WebSocket. O modelo processa e devolve áudio (PCM) e texto.
+*   **Integração:** Permite brainstorming "mãos livres" enquanto o usuário navega pelo painel.
 
-### Thinking Mode (Raciocínio)
-*   **Trigger:** `config.useThinking === true`
-*   **Configuração:** `thinkingConfig: { thinkingBudget: 32768 }`
-*   **Uso:** Consultas complexas que exigem planejamento de cena ou roteiros muito detalhados. O modelo "pensa" (gera tokens ocultos de raciocínio) antes de responder.
+## 4. Prompts de Engenharia
 
-## 3. Prompts Específicos
+### Geração de Proposta Comercial
+O sistema gera propostas completas baseadas em um briefing simples:
+> "ROLE: Operations Director. TASK: Structure a commercial proposal based on client briefing. OUTPUT: JSON with executive summary, pricing tiers (MVP, Growth, Enterprise), and team structure."
 
-### Geração de Carrossel (AIDA Strategy)
-O sistema injeta estratégias de marketing no prompt dependendo do objetivo escolhido:
-*   *Vendas:* "STRATEGY: Aggressive Sales (AIDA). Slide 1: Pain Point..."
-*   *Viral:* "STRATEGY: Relatability. 'Me in real life'..."
-
-### Prompt de Imagem (Technical Enhancer)
-Todos os prompts de imagem recebem um sufixo de qualidade automática:
-> "8k resolution, cinematic lighting, depth of field, photorealistic, highly detailed, ray tracing..."
+### Análise Financeira
+O agente financeiro recebe o JSON de transações e responde perguntas complexas:
+> "DATA: [JSON Transactions]. QUERY: 'Qual minha margem de lucro este mês?'. INSTRUCTION: Analyze data, calculate margins, identify trends."

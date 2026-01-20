@@ -7,27 +7,39 @@ A estrutura segue um padrão plano (flat) dentro da raiz `src` (conceitual), tí
 /
 ├── components/             # Componentes de UI reutilizáveis e Views
 │   ├── App.tsx             # Componente Raiz e Roteador Lógico
-│   ├── AssistantChat.tsx   # Drawer de chat lateral (Co-piloto)
-│   ├── ConfigPanel.tsx     # Sidebar de configurações (Estilo, Tom, etc.)
-│   ├── DashboardView.tsx   # Tela inicial (Listagem de projetos)
+│   ├── Sidebar.tsx         # Navegação lateral global (Gestão + Estúdio)
+│   ├── DashboardView.tsx   # Painel Principal com Diretor IA
+│   ├── TasksView.tsx       # Gestão de Tarefas (Kanban/Lista) [NOVO]
+│   ├── CRMView.tsx         # Gestão de Leads e Pipeline [NOVO]
+│   ├── ProjectsView.tsx    # Gestão de Projetos e Fases [NOVO]
+│   ├── FinanceView.tsx     # Fluxo de Caixa e Analista IA [NOVO]
+│   ├── TeamView.tsx        # Gestão de Equipe e Capacidade [NOVO]
+│   ├── CalendarView.tsx    # Calendário Unificado [NOVO]
 │   ├── GeneratorView.tsx   # Tela principal de criação de Carrosséis
 │   ├── CreativeGen...tsx   # Tela de geração de variações criativas
 │   ├── MotionGen...tsx     # Tela de criação de vídeo (Veo/Maps)
-│   ├── SlideCard.tsx       # Componente individual de slide (Renderização)
-│   ├── Sidebar.tsx         # Navegação lateral global
-│   ├── TopBar.tsx          # Cabeçalho global
+│   ├── AssistantChat.tsx   # Drawer de chat lateral (Co-piloto)
 │   └── ... (Outros componentes auxiliares)
 │
 ├── services/
-│   └── geminiService.ts    # Módulo ÚNICO de comunicação com a API do Google
+│   └── geminiService.ts    # Centralizador de chamadas IA
+│   └── ai/                 # Sub-módulos de IA
+│       ├── core.ts         # Configuração e Auth
+│       ├── text.ts         # Geração de Texto/Json
+│       ├── image.ts        # Imagen 3 / Edição
+│       ├── video.ts        # Veo / Motion Prompts
+│       ├── audio.ts        # TTS (Text-to-Speech)
+│       └── live.ts         # Gemini Live (WebSockets/Áudio Real-time) [NOVO]
 │
-├── types.ts                # Definições de Tipos TypeScript globais (Interfaces/Enums)
+├── context/
+│   └── AgencyContext.tsx   # Estado Global (Tasks, Projects, Team, etc.)
+│
+├── types.ts                # Definições de Tipos TypeScript globais
 ├── index.html              # Ponto de entrada da aplicação web
-├── index.tsx               # Ponto de entrada do React
-└── metadata.json           # Configurações de permissões do ambiente
+└── metadata.json           # Configurações de permissões (Microfone, etc.)
 ```
 
 ## Boas Práticas Aplicadas
-1.  **Colocação (Colocation):** Componentes grandes (Views) estão na mesma pasta de componentes menores por enquanto, mas logicamente separados.
-2.  **Tipagem Centralizada:** `types.ts` evita referências circulares e mantém os contratos de dados consistentes entre componentes e serviços.
-3.  **Abstração de API:** Nenhum componente chama `new GoogleGenAI` diretamente; tudo passa pelo `geminiService`.
+1.  **Context API:** O `AgencyContext.tsx` atua como um "mini-banco de dados" local, gerenciando o estado de todas as entidades de gestão (CRUD de tarefas, projetos, etc.).
+2.  **Modularização de Serviços:** A pasta `services/ai/` separa as responsabilidades por modalidade (texto, imagem, vídeo, live) para evitar arquivos gigantes.
+3.  **Integração Híbrida:** O Dashboard conecta dados locais (Context) com inteligência de nuvem (Gemini) para permitir que a IA manipule o estado da aplicação.
